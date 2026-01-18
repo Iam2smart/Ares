@@ -1,0 +1,41 @@
+[Unit]
+Description=Ares HDR Video Processor
+After=network.target systemd-modules-load.service
+Wants=network-online.target
+Requires=systemd-modules-load.service
+
+[Service]
+Type=simple
+User=ares
+Group=video
+ExecStartPre=/usr/bin/modprobe decklink
+ExecStartPre=/usr/bin/modprobe nvidia-drm
+ExecStart=/usr/bin/ares --config /etc/ares/ares.json --daemon
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Performance - Real-time scheduling
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=80
+IOSchedulingClass=realtime
+IOSchedulingPriority=2
+LimitRTPRIO=99
+LimitNICE=-20
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ares /var/log/ares
+DeviceAllow=/dev/dri rw
+DeviceAllow=/dev/blackmagic rw
+DeviceAllow=/dev/input rw
+
+# Watchdog
+WatchdogSec=30
+
+[Install]
+WantedBy=multi-user.target

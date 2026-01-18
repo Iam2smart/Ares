@@ -1,0 +1,23 @@
+{
+  "name": "Cinema",
+  "description": "Optimized for dark room viewing with accurate tone mapping",
+  "processing": {
+    "tone_mapping": {
+      "algorithm": "bt2390",
+      "target_nits": 48,
+      "source_nits": 1000,
+      "contrast": 1.1,
+      "saturation": 1.0
+    },
+    "nls": {
+      "enabled": true,
+      "strength": 0.7,
+      "adapt_speed": 0.2
+    },
+    "black_bars": {
+      "enabled": true,
+      "threshold": 16,
+      "min_content_height": 0.5
+    }
+  }
+}
