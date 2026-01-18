@@ -33,29 +33,40 @@ enum class TransferFunction {
     HLG          // Hybrid Log-Gamma
 };
 
-// NLS+ (Natural Light Simulation) configuration
+// NLS (Non-Linear Stretch) configuration
+// Warps 16:9 content to fit cinemascope (2.35:1 / 2.40:1) screens
+// Less stretch in center, more at edges
 struct NLSConfig {
-    bool enabled = true;
+    bool enabled = false;
 
-    // Core NLS parameters
-    float strength = 0.5f;              // Overall effect strength (0.0-1.0)
-    float adapt_speed = 0.3f;           // Adaptation speed (0.0-1.0, slower = more cinematic)
-    float bright_adapt_speed = 0.5f;    // Speed for bright scenes
-    float dark_adapt_speed = 0.2f;      // Speed for dark scenes
+    // Target aspect ratio
+    enum class TargetAspect {
+        SCOPE_235,      // 2.35:1 (cinemascope)
+        SCOPE_240,      // 2.40:1 (ultra wide)
+        SCOPE_255,      // 2.55:1 (ultra panavision)
+        CUSTOM          // Custom aspect ratio
+    } target_aspect = TargetAspect::SCOPE_235;
 
-    // Scene analysis
-    float scene_change_threshold = 0.15f;  // Threshold for detecting scene changes
-    bool reset_on_scene_change = true;     // Reset adaptation on scene change
+    float custom_aspect = 2.35f;        // Custom aspect ratio (if target_aspect == CUSTOM)
 
-    // Brightness limits
-    float min_brightness = 0.1f;        // Minimum brightness multiplier
-    float max_brightness = 2.0f;        // Maximum brightness multiplier
+    // Stretch parameters
+    float center_strength = 0.0f;       // Stretch in center (0.0 = none, 1.0 = linear)
+    float edge_strength = 1.0f;         // Stretch at edges (0.0-2.0)
+    float transition_width = 0.3f;      // Width of transition zone (0.0-1.0)
 
-    // Advanced parameters
-    float temporal_smoothing = 0.5f;    // Temporal smoothing (0.0-1.0)
-    float spatial_weighting = 0.7f;     // Weight for spatial analysis
-    bool preserve_black = true;         // Preserve black levels
-    float black_threshold = 0.05f;      // Threshold for black preservation
+    // Vertical positioning
+    float vertical_offset = 0.0f;       // Vertical offset (-0.5 to +0.5)
+    bool preserve_aspect = true;        // Preserve aspect ratio within stretched area
+
+    // Quality
+    enum class InterpolationQuality {
+        BILINEAR,       // Fast, lower quality
+        BICUBIC,        // Good quality
+        LANCZOS         // Best quality, slower
+    } interpolation = InterpolationQuality::BICUBIC;
+
+    // Preview mode (show grid overlay)
+    bool show_grid = false;
 };
 
 // Black bar detection configuration
