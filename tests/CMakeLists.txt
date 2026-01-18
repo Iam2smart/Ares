@@ -15,5 +15,19 @@ target_link_libraries(test_capture
     Threads::Threads
 )
 
-# Install test executable (optional)
-install(TARGETS test_capture DESTINATION bin)
+# Processing pipeline test
+add_executable(test_processing test_processing.cpp)
+
+target_include_directories(test_processing PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_processing
+    ares_core
+    ares_processing
+    Threads::Threads
+)
+
+# Install test executables (optional)
+install(TARGETS test_capture test_processing DESTINATION bin)
