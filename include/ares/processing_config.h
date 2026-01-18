@@ -34,8 +34,9 @@ enum class TransferFunction {
 };
 
 // NLS (Non-Linear Stretch) configuration
+// Based on NLS-Next by NotMithical (mpv shader)
 // Warps 16:9 content to fit cinemascope (2.35:1 / 2.40:1) screens
-// Less stretch in center, more at edges
+// Uses power curves for sophisticated non-linear stretching
 struct NLSConfig {
     bool enabled = false;
 
@@ -47,16 +48,23 @@ struct NLSConfig {
         CUSTOM          // Custom aspect ratio
     } target_aspect = TargetAspect::SCOPE_235;
 
-    float custom_aspect = 2.35f;        // Custom aspect ratio (if target_aspect == CUSTOM)
+    float custom_aspect_ratio = 2.35f;  // Custom aspect ratio (if target_aspect == CUSTOM)
 
-    // Stretch parameters
-    float center_strength = 0.0f;       // Stretch in center (0.0 = none, 1.0 = linear)
-    float edge_strength = 1.0f;         // Stretch at edges (0.0-2.0)
-    float transition_width = 0.3f;      // Width of transition zone (0.0-1.0)
+    // Stretch distribution (NLS-Next style)
+    // Values are normalized to total 1.0 automatically
+    float horizontal_stretch = 0.5f;    // Horizontal stretch amount (0.0-1.0)
+    float vertical_stretch = 0.5f;      // Vertical stretch amount (0.0-1.0)
 
-    // Vertical positioning
-    float vertical_offset = 0.0f;       // Vertical offset (-0.5 to +0.5)
-    bool preserve_aspect = true;        // Preserve aspect ratio within stretched area
+    // Content adjustment (NLS-Next style)
+    float crop_amount = 0.0f;           // Crop edges before stretch (0.0-1.0)
+                                        // Higher = less content but less distortion
+    float bars_amount = 0.0f;           // Add black bars/padding (0.0-1.0)
+                                        // Higher = scale down + add bars = less distortion
+
+    // Center protection (NLS-Next power curve)
+    float center_protect = 1.0f;        // Power curve for stretching (0.1-6.0)
+                                        // Higher = more stretch at edges, less in center
+                                        // 1.0 = linear, >1.0 = protect center more
 
     // Quality
     enum class InterpolationQuality {
@@ -65,8 +73,9 @@ struct NLSConfig {
         LANCZOS         // Best quality, slower
     } interpolation = InterpolationQuality::BICUBIC;
 
-    // Preview mode (show grid overlay)
-    bool show_grid = false;
+    // Advanced options
+    float vertical_offset = 0.0f;       // Vertical offset (-0.5 to +0.5)
+    bool show_grid = false;             // Preview mode (show grid overlay)
 };
 
 // Black bar detection configuration

@@ -4,7 +4,9 @@
 #include <chrono>
 #include <algorithm>
 
-// GLSL compute shader for NLS warping (compiled at runtime)
+// GLSL compute shader for NLS warping (NLS-Next implementation)
+// Based on NLS-Next by NotMithical (mpv shader)
+// https://github.com/NotMithical/MPV-NLS-Next
 static const char* NLS_COMPUTE_SHADER = R"(
 #version 450
 
@@ -14,33 +16,53 @@ layout(binding = 0) uniform sampler2D inputTex;
 layout(binding = 1, rgba8) uniform writeonly image2D outputImg;
 
 layout(push_constant) uniform PushConstants {
-    float centerStrength;
-    float edgeStrength;
-    float transitionWidth;
-    float targetAspectRatio;
+    float horizontalStretch;
+    float verticalStretch;
+    float cropAmount;
+    float barsAmount;
+    float centerProtect;
+    vec2 inputSize;
+    vec2 outputSize;
     uint interpolationQuality;
 } params;
 
-// Non-linear warp function
-// Maps output coordinate to input coordinate with less stretch in center
-vec2 applyWarp(vec2 coord) {
-    // Center the coordinates (-0.5 to 0.5)
-    vec2 centered = coord - 0.5;
+// NLS-Next bidirectional nonlinear stretch
+// Uses power curves for sophisticated center protection
+vec2 stretch(vec2 pos, float h_par, float v_par) {
+    // Normalize user defined parameters so they total 1.0
+    float hStretchNorm = params.horizontalStretch / (params.horizontalStretch + params.verticalStretch);
+    float vStretchNorm = params.verticalStretch / (params.horizontalStretch + params.verticalStretch);
 
-    // Calculate distance from center (horizontal only for aspect ratio)
-    float dist = abs(centered.x);
+    // Calculate stretch multipliers
+    float h_m_stretch = pow(h_par, hStretchNorm);
+    float v_m_stretch = pow(v_par, vStretchNorm);
 
-    // Smooth transition from center to edge
-    float t = smoothstep(0.0, params.transitionWidth, dist);
+    // Center coordinates (-0.5 to 0.5)
+    float x = pos.x - 0.5;
+    float y = pos.y - 0.5;
 
-    // Interpolate between center and edge strength
-    float strength = mix(params.centerStrength, params.edgeStrength, t);
+    // Apply power curve with crop/bars
+    // The formula: coord * pow(abs(coord), CenterProtect) * scale_factor
+    // Higher CenterProtect = more stretch at edges, less in center
+    if (h_par < 1.0) {
+        // Horizontal stretch case
+        float x_scale = pow(2.0, params.centerProtect) - (params.cropAmount * 2.0);
+        float y_scale = pow(2.0, params.centerProtect) - (params.barsAmount * 5.0);
 
-    // Apply warp (stretch horizontally)
-    centered.x *= (1.0 + strength);
+        return vec2(
+            mix(x * pow(abs(x), params.centerProtect) * x_scale, x, h_m_stretch) + 0.5,
+            mix(y * pow(abs(y), params.centerProtect) * y_scale, y, v_m_stretch) + 0.5
+        );
+    } else {
+        // Vertical stretch case
+        float x_scale = pow(2.0, params.centerProtect) - (params.barsAmount * 5.0);
+        float y_scale = pow(2.0, params.centerProtect) - (params.cropAmount * 2.0);
 
-    // Return to 0-1 range
-    return centered + 0.5;
+        return vec2(
+            mix(x * pow(abs(x), params.centerProtect) * x_scale, x, h_m_stretch) + 0.5,
+            mix(y * pow(abs(y), params.centerProtect) * y_scale, y, v_m_stretch) + 0.5
+        );
+    }
 }
 
 // Bicubic interpolation weights
@@ -90,26 +112,38 @@ void main() {
     // Normalize output coordinates (0-1)
     vec2 normalizedCoord = (vec2(outputCoord) + 0.5) / vec2(outputSize);
 
-    // Apply non-linear warp
-    vec2 warpedCoord = applyWarp(normalizedCoord);
+    // Calculate aspect ratio parameters (like NLS-Next)
+    float dar = params.outputSize.x / params.outputSize.y;  // Display aspect ratio
+    float sar = params.inputSize.x / params.inputSize.y;    // Source aspect ratio
+    float h_par = dar / sar;  // Horizontal stretch parameter
+    float v_par = sar / dar;  // Vertical stretch parameter
 
-    // Sample input texture
+    // Apply NLS-Next bidirectional stretch
+    vec2 stretchedPos = stretch(normalizedCoord, h_par, v_par);
+
+    // Check if pixel is outside target boundaries (after stretching)
+    bool outOfBounds = (any(lessThan(stretchedPos, vec2(0.0))) ||
+                       any(greaterThan(stretchedPos, vec2(1.0))));
+
+    // Sample input texture or black out out-of-bounds pixels
     vec4 color;
-    if (params.interpolationQuality == 0) {
-        // Bilinear (fast)
-        color = texture(inputTex, warpedCoord);
-    } else if (params.interpolationQuality == 1) {
-        // Bicubic (high quality)
-        vec2 inputSize = vec2(textureSize(inputTex, 0));
-        color = sampleBicubic(inputTex, warpedCoord, inputSize);
+    if (outOfBounds) {
+        color = vec4(0.0);  // Black bars for out-of-bounds
     } else {
-        // Lanczos approximation (best quality)
-        vec2 inputSize = vec2(textureSize(inputTex, 0));
-        color = sampleBicubic(inputTex, warpedCoord, inputSize);
-    }
+        if (params.interpolationQuality == 0u) {
+            // Bilinear (fast)
+            color = texture(inputTex, stretchedPos);
+        } else if (params.interpolationQuality == 1u) {
+            // Bicubic (high quality)
+            color = sampleBicubic(inputTex, stretchedPos, params.inputSize);
+        } else {
+            // Lanczos approximation (best quality)
+            color = sampleBicubic(inputTex, stretchedPos, params.inputSize);
+        }
 
-    // Clamp to valid range
-    color = clamp(color, 0.0, 1.0);
+        // Clamp to valid range
+        color = clamp(color, 0.0, 1.0);
+    }
 
     // Write to output
     imageStore(outputImg, outputCoord, color);
