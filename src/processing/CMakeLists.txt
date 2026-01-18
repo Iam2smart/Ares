@@ -1,6 +1,9 @@
 add_library(ares_processing STATIC
     vulkan_context.cpp
     placebo_renderer.cpp
+    black_bar_detector.cpp
+    nls_shader.cpp
+    processing_pipeline.cpp
 )
 
 target_include_directories(ares_processing PUBLIC
