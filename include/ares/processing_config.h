@@ -186,6 +186,126 @@ struct DeinterlaceConfig {
     } method = Method::YADIF;
 };
 
+// Upscaling/Downscaling algorithms (like madVR)
+enum class ScalingAlgorithm {
+    // Fast algorithms
+    BILINEAR,               // Fast, low quality
+    NEAREST,                // Nearest neighbor (pixel art)
+
+    // Good quality
+    BICUBIC,                // Standard bicubic
+    MITCHELL,               // Mitchell-Netravali
+    CATMULL_ROM,            // Catmull-Rom (sharper)
+    HERMITE,                // Hermite
+
+    // High quality (madVR style)
+    LANCZOS,                // Lanczos windowed sinc
+    SPLINE16,               // 2-tap Spline
+    SPLINE36,               // 3-tap Spline
+    SPLINE64,               // 4-tap Spline
+
+    // Best quality (slow)
+    EWA_LANCZOS,            // Elliptical Weighted Average Lanczos
+    EWA_LANCZOS_SHARP,      // EWA Lanczos Sharpened
+    EWA_LANCZOS_4TAP,       // EWA Lanczos 4-tap
+    JINC,                   // Jinc (madVR quality)
+
+    // Neural network upscaling
+    NNEDI3_16,              // NNEDI3 neurons=16
+    NNEDI3_32,              // NNEDI3 neurons=32
+    NNEDI3_64,              // NNEDI3 neurons=64
+    NNEDI3_128,             // NNEDI3 neurons=128
+
+    // Super resolution
+    SUPER_XBIR,             // Super-xBR
+    RAVU_LITE,              // RAVU-Lite
+    RAVU,                   // RAVU (Rapid and Accurate Video Upscaling)
+};
+
+// Chroma upscaling configuration
+// Convert YCbCr 4:2:0 or 4:2:2 to 4:4:4 with high-quality interpolation
+struct ChromaUpscalingConfig {
+    bool enabled = true;
+
+    // Force chroma downsampling before upscaling
+    // (undo DeckLink's 4:2:2 → let renderer upscale)
+    bool force_420 = false;             // Convert 422 (v210) → 420 (p010)
+
+    // Chroma upscaling algorithm
+    ScalingAlgorithm algorithm = ScalingAlgorithm::EWA_LANCZOS;
+
+    // Algorithm parameters
+    float antiring = 0.0f;              // Anti-ringing (0.0-1.0)
+    float blur = 0.0f;                  // Blur/soften (0.0-1.0)
+
+    // madVR-style supersampling
+    bool supersample = false;           // Supersample chroma (slow, high quality)
+    float supersample_factor = 2.0f;    // Supersampling factor (1.5-4.0)
+};
+
+// Image upscaling configuration
+struct ImageUpscalingConfig {
+    ScalingAlgorithm luma_algorithm = ScalingAlgorithm::NNEDI3_64;
+    ScalingAlgorithm chroma_algorithm = ScalingAlgorithm::EWA_LANCZOS;
+
+    // Separate algorithms for upscaling vs downscaling
+    ScalingAlgorithm downscaling_algorithm = ScalingAlgorithm::HERMITE;
+
+    // Sharpening during upscale
+    float sharpen_strength = 0.0f;      // 0.0-1.0
+
+    // Algorithm parameters
+    float antiring = 0.0f;              // Anti-ringing strength (0.0-1.0)
+    float blur = 0.0f;                  // Blur/soften (0.0-1.0)
+
+    // AR (Anti-Ringing) filter
+    bool use_ar_filter = true;
+
+    // Sigmoidal upscaling (like madVR)
+    bool sigmoid = false;               // Sigmoid color space for upscaling
+    float sigmoid_center = 0.75f;       // Sigmoid center point
+    float sigmoid_slope = 6.5f;         // Sigmoid slope
+};
+
+// Debanding configuration
+struct DebandingConfig {
+    bool enabled = false;
+
+    // Detection
+    int iterations = 1;                 // Number of debanding passes (1-4)
+    float threshold = 4.0f;             // Detection threshold (1.0-20.0)
+
+    // Processing
+    int radius = 16;                    // Debanding radius (8-32)
+    float grain = 6.0f;                 // Add grain to hide banding (0.0-20.0)
+
+    // Quality
+    bool temporal = false;              // Temporal debanding (uses multiple frames)
+};
+
+// Dithering configuration
+struct DitheringConfig {
+    bool enabled = true;
+
+    enum class Method {
+        NONE,                           // No dithering
+        ORDERED,                        // Ordered (Bayer) dithering
+        RANDOM,                         // Random dithering
+        ERROR_DIFFUSION,                // Error diffusion (Floyd-Steinberg)
+        BLUE_NOISE,                     // Blue noise (best quality)
+        WHITE_NOISE                     // White noise
+    } method = Method::BLUE_NOISE;
+
+    // Dither strength
+    float strength = 1.0f;              // 0.0-2.0
+
+    // Temporal dithering (reduces flickering)
+    bool temporal = true;
+
+    // LUT size for dithering
+    int lut_size = 64;                  // 6-bit (64) or 8-bit (256)
+};
+
 // Complete processing configuration
 struct ProcessingConfig {
     // Core processing
@@ -193,6 +313,14 @@ struct ProcessingConfig {
     ColorConfig color;
     NLSConfig nls;
     BlackBarConfig black_bars;
+
+    // Scaling (madVR-style)
+    ChromaUpscalingConfig chroma_upscaling;
+    ImageUpscalingConfig image_upscaling;
+
+    // Quality enhancements
+    DebandingConfig debanding;
+    DitheringConfig dithering;
 
     // Optional processing
     SharpeningConfig sharpening;
