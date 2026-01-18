@@ -202,6 +202,25 @@ Result ProcessingPipeline::processFrame(const VideoFrame& input, VideoFrame& out
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
+    // Stage 0: Auto-detect SDR vs HDR content and adjust color space
+    bool is_hdr = (input.hdr_metadata.type != HDRType::NONE);
+
+    // Automatically adjust color space based on content
+    static bool last_was_hdr = false;
+    if (is_hdr != last_was_hdr) {
+        if (is_hdr) {
+            // HDR content: use BT.2020 and apply tone mapping
+            LOG_INFO("Processing", "Detected HDR content (type=%d), using BT.2020 + tone mapping",
+                    static_cast<int>(input.hdr_metadata.type));
+            m_config.color.input_gamut = ColorGamut::BT2020;
+        } else {
+            // SDR content: use BT.709, skip tone mapping
+            LOG_INFO("Processing", "Detected SDR content, using BT.709 (no tone mapping)");
+            m_config.color.input_gamut = ColorGamut::BT709;
+        }
+        last_was_hdr = is_hdr;
+    }
+
     // Stage 1: Detect black bars
     Result result = detectBlackBars(input);
     if (result != Result::SUCCESS) {
@@ -257,12 +276,18 @@ Result ProcessingPipeline::processFrame(const VideoFrame& input, VideoFrame& out
         m_stats.after_nls_height = current_frame->height;
     }
 
-    // Stage 4: Apply tone mapping
+    // Stage 4: Apply tone mapping (only for HDR content)
     VideoFrame tone_mapped_output;
-    result = applyToneMapping(*current_frame, tone_mapped_output);
-    if (result != Result::SUCCESS) {
-        LOG_ERROR("Processing", "Tone mapping failed");
-        return result;
+    if (is_hdr) {
+        // HDR content: apply tone mapping
+        result = applyToneMapping(*current_frame, tone_mapped_output);
+        if (result != Result::SUCCESS) {
+            LOG_ERROR("Processing", "Tone mapping failed");
+            return result;
+        }
+    } else {
+        // SDR content: skip tone mapping, pass through
+        tone_mapped_output = *current_frame;
     }
 
     // Stage 5: OSD compositing (if OSD is active)
