@@ -56,9 +56,15 @@ public:
         uint64_t frames_captured = 0;
         uint64_t frames_dropped = 0;
         double current_fps = 0.0;
+        double detected_fps = 0.0;      // Detected input frame rate
+        bool frame_rate_stable = false; // Frame rate detection stable
         uint32_t queue_size = 0;
     };
     Stats getStats() const;
+
+    // Get detected input frame rate
+    double getDetectedFrameRate() const { return m_detected_frame_rate; }
+    bool isFrameRateStable() const { return m_frame_rate_stable; }
 
 private:
     friend class DeckLinkCaptureCallback;
@@ -97,6 +103,14 @@ private:
     mutable std::mutex m_stats_mutex;
     Stats m_stats;
     Timestamp m_last_frame_time;
+
+    // Frame rate detection
+    void detectFrameRate(int64_t pts);
+    std::vector<double> m_frame_intervals;  // Recent frame intervals for detection
+    double m_detected_frame_rate = 0.0;
+    bool m_frame_rate_stable = false;
+    int64_t m_last_pts = 0;
+    static constexpr size_t FRAME_RATE_SAMPLES = 30;
 
     // State
     std::atomic<bool> m_initialized{false};

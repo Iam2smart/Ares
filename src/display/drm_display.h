@@ -29,16 +29,54 @@ public:
     // Get display information
     struct DisplayInfo {
         std::string connector_name;
+        std::string display_name;       // From EDID
+        std::string manufacturer;        // From EDID
         uint32_t connector_id;
         uint32_t crtc_id;
         uint32_t width;
         uint32_t height;
         float refresh_rate;
+
+        // HDR capabilities from EDID
         bool hdr_supported;
+        bool hdr10_supported;
+        bool hlg_supported;
+        bool dolby_vision_supported;
+        uint16_t max_luminance;          // nits
+        uint16_t min_luminance;          // 0.0001 nits units
+        uint16_t max_cll;                // Max Content Light Level
+        uint16_t max_fall;               // Max Frame Average Light Level
+
         std::vector<DisplayMode> available_modes;
     };
 
     DisplayInfo getDisplayInfo() const;
+
+    // EDID parsing
+    struct EDIDInfo {
+        std::string manufacturer;
+        std::string product_name;
+        uint16_t product_code;
+        uint32_t serial_number;
+
+        // HDR capabilities
+        bool hdr_supported;
+        bool hdr10_supported;
+        bool hlg_supported;
+        bool dolby_vision_supported;
+        uint16_t max_luminance;
+        uint16_t min_luminance;
+        uint16_t max_cll;
+        uint16_t max_fall;
+
+        // Color gamut
+        float red_x, red_y;
+        float green_x, green_y;
+        float blue_x, blue_y;
+        float white_x, white_y;
+    };
+
+    Result parseEDID(EDIDInfo& edid_info) const;
 
     // Mode management
     Result setMode(const DisplayMode& mode);
