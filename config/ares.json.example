@@ -1,0 +1,71 @@
+{
+  "version": "1.0",
+  "capture": {
+    "device_index": 0,
+    "input_connection": "HDMI",
+    "pixel_format": "10BitYUV",
+    "buffer_size": 3
+  },
+  "processing": {
+    "tone_mapping": {
+      "algorithm": "bt2390",
+      "target_nits": 100,
+      "source_nits": 1000,
+      "contrast": 1.0,
+      "saturation": 1.0
+    },
+    "color": {
+      "gamut": "bt709",
+      "transfer": "gamma22"
+    },
+    "nls": {
+      "enabled": true,
+      "strength": 0.5,
+      "adapt_speed": 0.3
+    },
+    "black_bars": {
+      "enabled": true,
+      "threshold": 16,
+      "min_content_height": 0.5
+    }
+  },
+  "display": {
+    "connector": "HDMI-A-1",
+    "edid_override": null,
+    "preferred_modes": [
+      {"width": 3840, "height": 2160, "refresh": 24},
+      {"width": 3840, "height": 2160, "refresh": 60},
+      {"width": 1920, "height": 1080, "refresh": 60}
+    ],
+    "refresh_rate_matching": true
+  },
+  "sync": {
+    "target_latency_ms": 16,
+    "jitter_compensation": true,
+    "vsync_mode": "adaptive"
+  },
+  "osd": {
+    "enabled": true,
+    "position": "bottom_right",
+    "opacity": 0.8,
+    "show_stats": false
+  },
+  "input": {
+    "device": "/dev/input/by-id/usb-flirc.tv_flirc-event-kbd",
+    "mappings": {
+      "KEY_UP": "menu_up",
+      "KEY_DOWN": "menu_down",
+      "KEY_LEFT": "menu_left",
+      "KEY_RIGHT": "menu_right",
+      "KEY_ENTER": "menu_select",
+      "KEY_ESC": "menu_back",
+      "KEY_INFO": "toggle_stats",
+      "KEY_MENU": "toggle_menu"
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "output": "syslog",
+    "file_path": "/var/log/ares/ares.log"
+  }
+}
