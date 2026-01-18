@@ -15,6 +15,8 @@ target_include_directories(ares_processing PUBLIC
 
 target_link_libraries(ares_processing
     ares_core
+    ares_osd
+    ares_input
     ${Vulkan_LIBRARIES}
     ${LIBPLACEBO_LIBRARIES}
 )

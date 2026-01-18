@@ -125,14 +125,19 @@ private:
     // State
     bool m_initialized = false;
 
-    // Push constants for shader parameters
+    // Push constants for shader parameters (NLS-Next style)
     struct PushConstants {
-        float center_strength;
-        float edge_strength;
-        float transition_width;
-        float target_aspect_ratio;
+        float horizontal_stretch;
+        float vertical_stretch;
+        float crop_amount;
+        float bars_amount;
+        float center_protect;
+        float input_width;
+        float input_height;
+        float output_width;
+        float output_height;
         uint32_t interpolation_quality;
-        uint32_t padding[3];  // Alignment
+        uint32_t padding[2];  // Alignment to 16-byte boundary
     };
 };
 

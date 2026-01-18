@@ -107,6 +107,60 @@ Result ProcessingPipeline::initializeProcessors() {
     LOG_INFO("Processing", "Tone mapper initialized (algorithm: %s, target: %.0f nits)",
              algo_name, m_config.tone_mapping.target_nits);
 
+    // Initialize OSD system
+    // TODO: Get OSD config from main config (for now use defaults)
+    OSDConfig osd_config;
+
+    // Initialize IR remote
+    m_ir_remote = std::make_unique<input::IRRemote>();
+    result = m_ir_remote->initialize();
+    if (result != Result::SUCCESS) {
+        LOG_WARN("Processing", "Failed to initialize IR remote (OSD will not work)");
+        // Non-fatal error, continue without OSD
+    } else {
+        LOG_INFO("Processing", "IR remote initialized");
+
+        // Initialize OSD renderer
+        m_osd_renderer = std::make_unique<osd::OSDRenderer>();
+        result = m_osd_renderer->initialize(m_config.output_width,
+                                           m_config.output_height,
+                                           osd_config);
+        if (result != Result::SUCCESS) {
+            LOG_WARN("Processing", "Failed to initialize OSD renderer");
+            m_ir_remote.reset();
+        } else {
+            LOG_INFO("Processing", "OSD renderer initialized");
+
+            // Initialize OSD compositor
+            m_osd_compositor = std::make_unique<osd::OSDCompositor>();
+            result = m_osd_compositor->initialize(m_vulkan_context->getDevice(),
+                                                 m_vulkan_context->getPhysicalDevice());
+            if (result != Result::SUCCESS) {
+                LOG_WARN("Processing", "Failed to initialize OSD compositor");
+                m_osd_renderer.reset();
+                m_ir_remote.reset();
+            } else {
+                // Initialize menu system
+                m_menu_system = std::make_unique<osd::MenuSystem>();
+                result = m_menu_system->initialize(m_osd_renderer.get(),
+                                                  m_ir_remote.get(),
+                                                  osd_config);
+                if (result != Result::SUCCESS) {
+                    LOG_WARN("Processing", "Failed to initialize menu system");
+                    m_osd_compositor.reset();
+                    m_osd_renderer.reset();
+                    m_ir_remote.reset();
+                } else {
+                    LOG_INFO("Processing", "Menu system initialized");
+
+                    // Load default menu structure
+                    OSDMenuStructure menu = createDefaultOSDMenu();
+                    m_menu_system->loadMenu(menu);
+                }
+            }
+        }
+    }
+
     return Result::SUCCESS;
 }
 
@@ -121,6 +175,12 @@ void ProcessingPipeline::shutdown() {
     freeIntermediateFrame(m_cropped_frame);
     freeIntermediateFrame(m_warped_frame);
     freeIntermediateFrame(m_tone_mapped_frame);
+
+    // Destroy OSD system
+    m_menu_system.reset();
+    m_osd_compositor.reset();
+    m_osd_renderer.reset();
+    m_ir_remote.reset();
 
     // Destroy processors (in reverse order)
     m_tone_mapper.reset();
@@ -141,6 +201,25 @@ Result ProcessingPipeline::processFrame(const VideoFrame& input, VideoFrame& out
     }
 
     auto start_time = std::chrono::high_resolution_clock::now();
+
+    // Stage 0: Auto-detect SDR vs HDR content and adjust color space
+    bool is_hdr = (input.hdr_metadata.type != HDRType::NONE);
+
+    // Automatically adjust color space based on content
+    static bool last_was_hdr = false;
+    if (is_hdr != last_was_hdr) {
+        if (is_hdr) {
+            // HDR content: use BT.2020 and apply tone mapping
+            LOG_INFO("Processing", "Detected HDR content (type=%d), using BT.2020 + tone mapping",
+                    static_cast<int>(input.hdr_metadata.type));
+            m_config.color.input_gamut = ColorGamut::BT2020;
+        } else {
+            // SDR content: use BT.709, skip tone mapping
+            LOG_INFO("Processing", "Detected SDR content, using BT.709 (no tone mapping)");
+            m_config.color.input_gamut = ColorGamut::BT709;
+        }
+        last_was_hdr = is_hdr;
+    }
 
     // Stage 1: Detect black bars
     Result result = detectBlackBars(input);
@@ -197,11 +276,45 @@ Result ProcessingPipeline::processFrame(const VideoFrame& input, VideoFrame& out
         m_stats.after_nls_height = current_frame->height;
     }
 
-    // Stage 4: Apply tone mapping
-    result = applyToneMapping(*current_frame, output);
-    if (result != Result::SUCCESS) {
-        LOG_ERROR("Processing", "Tone mapping failed");
-        return result;
+    // Stage 4: Apply tone mapping (only for HDR content)
+    VideoFrame tone_mapped_output;
+    if (is_hdr) {
+        // HDR content: apply tone mapping
+        result = applyToneMapping(*current_frame, tone_mapped_output);
+        if (result != Result::SUCCESS) {
+            LOG_ERROR("Processing", "Tone mapping failed");
+            return result;
+        }
+    } else {
+        // SDR content: skip tone mapping, pass through
+        tone_mapped_output = *current_frame;
+    }
+
+    // Stage 5: OSD compositing (if OSD is active)
+    if (m_osd_renderer && m_osd_compositor && m_menu_system) {
+        // Poll IR remote for input
+        if (m_ir_remote) {
+            m_ir_remote->pollEvents();
+        }
+
+        // Update menu system (handles animations, timeouts)
+        if (m_menu_system->isVisible()) {
+            m_menu_system->update(m_stats.total_frame_time_ms);
+            m_menu_system->render();
+
+            // Composite OSD over video
+            result = compositeOSD(tone_mapped_output, output);
+            if (result != Result::SUCCESS) {
+                LOG_WARN("Processing", "OSD compositing failed, using frame without OSD");
+                output = tone_mapped_output;
+            }
+        } else {
+            // No OSD, use tone-mapped output directly
+            output = tone_mapped_output;
+        }
+    } else {
+        // No OSD system, use tone-mapped output directly
+        output = tone_mapped_output;
     }
 
     m_stats.output_width = output.width;
@@ -288,6 +401,28 @@ Result ProcessingPipeline::applyNLS(const VideoFrame& input, VideoFrame& output)
 
 Result ProcessingPipeline::applyToneMapping(const VideoFrame& input, VideoFrame& output) {
     return m_tone_mapper->processFrame(input, output, m_config);
+}
+
+Result ProcessingPipeline::compositeOSD(const VideoFrame& input, VideoFrame& output) {
+    if (!m_osd_renderer || !m_osd_compositor) {
+        return Result::ERROR_NOT_INITIALIZED;
+    }
+
+    // Get OSD surface data
+    const uint8_t* osd_data = m_osd_renderer->getSurfaceData();
+    if (!osd_data) {
+        return Result::ERROR_INVALID_PARAMETER;
+    }
+
+    uint32_t osd_width = m_osd_renderer->getWidth();
+    uint32_t osd_height = m_osd_renderer->getHeight();
+
+    // Get OSD config for positioning
+    OSDConfig osd_config = m_osd_renderer->getConfig();
+
+    // Composite OSD over video
+    return m_osd_compositor->composite(input, osd_data, osd_width, osd_height,
+                                      output, osd_config);
 }
 
 VideoFrame ProcessingPipeline::createIntermediateFrame(uint32_t width, uint32_t height,

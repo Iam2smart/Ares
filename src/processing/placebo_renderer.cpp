@@ -304,6 +304,100 @@ Result PlaceboRenderer::render(const ProcessingConfig& config) {
             break;
     }
 
+    // Configure dithering
+    if (config.dithering.enabled) {
+        render_params.dither_params = &(struct pl_dither_params) {
+            .method = [&]() {
+                switch (config.dithering.method) {
+                    case DitheringConfig::Method::ORDERED:
+                        return PL_DITHER_ORDERED_LUT;
+                    case DitheringConfig::Method::BLUE_NOISE:
+                        return PL_DITHER_BLUE_NOISE;
+                    case DitheringConfig::Method::WHITE_NOISE:
+                        return PL_DITHER_WHITE_NOISE;
+                    case DitheringConfig::Method::ERROR_DIFFUSION:
+                        return PL_DITHER_ERROR_DIFFUSION;
+                    default:
+                        return PL_DITHER_BLUE_NOISE;  // Best quality default
+                }
+            }(),
+            .lut_size = config.dithering.lut_size,
+            .temporal = config.dithering.temporal,
+        };
+    }
+
+    // Configure debanding
+    if (config.debanding.enabled) {
+        render_params.deband_params = &(struct pl_deband_params) {
+            .iterations = config.debanding.iterations,
+            .threshold = config.debanding.threshold,
+            .radius = (float)config.debanding.radius,
+            .grain = config.debanding.grain,
+        };
+    }
+
+    // Configure chroma upsampling
+    if (config.chroma_upscaling.enabled) {
+        // Map our ScalingAlgorithm to libplacebo filter
+        const struct pl_filter_preset* chroma_filter = nullptr;
+        switch (config.chroma_upscaling.algorithm) {
+            case ScalingAlgorithm::BILINEAR:
+                chroma_filter = &pl_filter_bilinear;
+                break;
+            case ScalingAlgorithm::BICUBIC:
+                chroma_filter = &pl_filter_bicubic;
+                break;
+            case ScalingAlgorithm::LANCZOS:
+            case ScalingAlgorithm::EWA_LANCZOS:
+                chroma_filter = &pl_filter_lanczos;
+                break;
+            case ScalingAlgorithm::SPLINE16:
+                chroma_filter = &pl_filter_spline16;
+                break;
+            case ScalingAlgorithm::SPLINE36:
+                chroma_filter = &pl_filter_spline36;
+                break;
+            case ScalingAlgorithm::SPLINE64:
+                chroma_filter = &pl_filter_spline64;
+                break;
+            default:
+                chroma_filter = &pl_filter_lanczos;  // High quality default
+                break;
+        }
+
+        // Set chroma upscaling filter
+        source.repr.sys = PL_COLOR_SYSTEM_BT_2020_C;  // Enable chroma processing
+        render_params.plane_upscaler = chroma_filter;
+
+        // Configure anti-ringing
+        if (config.chroma_upscaling.antiring > 0.0f) {
+            render_params.antiringing_strength = config.chroma_upscaling.antiring;
+        }
+    }
+
+    // Configure image upscaling algorithms
+    if (config.image_upscaling.luma_algorithm != ScalingAlgorithm::BILINEAR) {
+        const struct pl_filter_preset* luma_filter = nullptr;
+        switch (config.image_upscaling.luma_algorithm) {
+            case ScalingAlgorithm::LANCZOS:
+                luma_filter = &pl_filter_lanczos;
+                break;
+            case ScalingAlgorithm::SPLINE36:
+                luma_filter = &pl_filter_spline36;
+                break;
+            case ScalingAlgorithm::EWA_LANCZOS:
+                luma_filter = &pl_filter_ewa_lanczos;
+                break;
+            case ScalingAlgorithm::EWA_LANCZOS_SHARP:
+                luma_filter = &pl_filter_ewa_lanczossharp;
+                break;
+            default:
+                luma_filter = &pl_filter_lanczos;
+                break;
+        }
+        render_params.upscaler = luma_filter;
+    }
+
     // Render
     if (!pl_render_image(m_renderer, &source, &target, &render_params)) {
         LOG_ERROR("Processing", "Failed to render frame");

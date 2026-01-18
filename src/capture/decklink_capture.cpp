@@ -407,6 +407,11 @@ void DeckLinkCapture::onFrameReceived(IDeckLinkVideoInputFrame* video_frame, int
             m_stats.current_fps = 1000.0 / elapsed.count();
         }
         m_last_frame_time = now;
+
+        // Detect frame rate from PTS
+        detectFrameRate(pts);
+        m_stats.detected_fps = m_detected_frame_rate;
+        m_stats.frame_rate_stable = m_frame_rate_stable;
     }
 }
 
@@ -464,6 +469,101 @@ void DeckLinkCapture::parseHDRMetadata(IDeckLinkVideoInputFrame* video_frame, HD
     }
 
     metadata_ext->Release();
+}
+
+void DeckLinkCapture::detectFrameRate(int64_t pts) {
+    // Skip first frame
+    if (m_last_pts == 0) {
+        m_last_pts = pts;
+        return;
+    }
+
+    // Calculate frame interval in seconds
+    double interval = (pts - m_last_pts) / 90000.0;  // DeckLink PTS is in 90kHz units
+    m_last_pts = pts;
+
+    // Ignore unrealistic intervals (> 1 second or < 1ms)
+    if (interval > 1.0 || interval < 0.001) {
+        return;
+    }
+
+    // Add to interval buffer
+    m_frame_intervals.push_back(interval);
+    if (m_frame_intervals.size() > FRAME_RATE_SAMPLES) {
+        m_frame_intervals.erase(m_frame_intervals.begin());
+    }
+
+    // Need enough samples for reliable detection
+    if (m_frame_intervals.size() < FRAME_RATE_SAMPLES / 2) {
+        return;
+    }
+
+    // Calculate average interval
+    double avg_interval = 0.0;
+    for (double i : m_frame_intervals) {
+        avg_interval += i;
+    }
+    avg_interval /= m_frame_intervals.size();
+
+    // Convert to FPS
+    double raw_fps = 1.0 / avg_interval;
+
+    // Common frame rates with tolerance
+    struct FrameRate {
+        double fps;
+        double tolerance;
+        const char* name;
+    };
+
+    static const FrameRate common_rates[] = {
+        {23.976, 0.1, "23.976"},
+        {24.000, 0.1, "24"},
+        {25.000, 0.1, "25"},
+        {29.970, 0.1, "29.97"},
+        {30.000, 0.1, "30"},
+        {50.000, 0.2, "50"},
+        {59.940, 0.2, "59.94"},
+        {60.000, 0.2, "60"},
+        {100.000, 0.5, "100"},
+        {119.880, 0.5, "119.88"},
+        {120.000, 0.5, "120"}
+    };
+
+    // Find closest matching frame rate
+    double closest_fps = raw_fps;
+    double min_diff = 1000.0;
+    bool found_match = false;
+
+    for (const auto& rate : common_rates) {
+        double diff = std::abs(raw_fps - rate.fps);
+        if (diff < rate.tolerance && diff < min_diff) {
+            min_diff = diff;
+            closest_fps = rate.fps;
+            found_match = true;
+        }
+    }
+
+    // Check stability - all intervals should be close to average
+    double max_deviation = 0.0;
+    for (double i : m_frame_intervals) {
+        double deviation = std::abs(i - avg_interval) / avg_interval;
+        max_deviation = std::max(max_deviation, deviation);
+    }
+
+    // Consider stable if max deviation < 5% and we have full buffer
+    bool stable = (max_deviation < 0.05) && (m_frame_intervals.size() >= FRAME_RATE_SAMPLES);
+
+    // Only update if changed significantly or became stable
+    if (std::abs(m_detected_frame_rate - closest_fps) > 0.5 || (stable && !m_frame_rate_stable)) {
+        m_detected_frame_rate = closest_fps;
+        m_frame_rate_stable = stable && found_match;
+
+        if (m_frame_rate_stable) {
+            LOG_INFO("Capture", "Frame rate detected: %.3f fps (stable)", m_detected_frame_rate);
+        } else {
+            LOG_DEBUG("Capture", "Frame rate detecting: %.3f fps (unstable)", raw_fps);
+        }
+    }
 }
 
 } // namespace capture

@@ -29,5 +29,20 @@ target_link_libraries(test_processing
     Threads::Threads
 )
 
+# Display output test
+add_executable(test_display test_display.cpp)
+
+target_include_directories(test_display PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_display
+    ares_core
+    ares_processing
+    ares_display
+    Threads::Threads
+)
+
 # Install test executables (optional)
-install(TARGETS test_capture test_processing DESTINATION bin)
+install(TARGETS test_capture test_processing test_display DESTINATION bin)

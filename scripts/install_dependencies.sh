@@ -63,11 +63,17 @@ if [ "$DISTRO" = "arch" ]; then
         libevdev \
         libudev.so
 
+    # OSD rendering libraries
+    pacman -S --needed --noconfirm \
+        cairo \
+        pango
+
     # System utilities
     pacman -S --needed --noconfirm \
         chrony \
         linux-rt \
-        linux-rt-headers
+        linux-rt-headers \
+        openssh
 
     echo ""
     echo "Package installation complete!"
