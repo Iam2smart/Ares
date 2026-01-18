@@ -1,5 +1,6 @@
 add_library(ares_input STATIC
     input_manager.cpp
+    ir_remote.cpp
 )
 
 target_include_directories(ares_input PUBLIC

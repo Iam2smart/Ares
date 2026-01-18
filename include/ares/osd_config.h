@@ -55,6 +55,9 @@ struct MenuItem {
     bool enabled = true;                    // Item is selectable
     bool visible = true;                    // Item is visible
     std::string tooltip;                    // Help text
+    std::string icon;                       // Item icon
+    std::string value;                      // Current value display
+    bool has_submenu = false;               // Has submenu indicator
 
     // Conditional visibility
     std::function<bool()> visibility_condition;
@@ -77,12 +80,31 @@ struct OSDConfig {
     int position_y = 100;                   // Screen position Y
 
     // Appearance
-    std::string font = "Sans";
+    std::string font_family = "Sans";
     int font_size = 24;
-    uint32_t text_color = 0xFFFFFFFF;       // RGBA
-    uint32_t background_color = 0xE0000000; // RGBA
-    uint32_t highlight_color = 0xFF00AAFF;  // RGBA
-    uint32_t border_color = 0xFF666666;     // RGBA
+    uint32_t text_color = 0xFFFFFFFF;           // RGBA
+    uint32_t background_color = 0xE0000000;     // RGBA
+    uint32_t highlight_color = 0xFF00AAFF;      // RGBA
+    uint32_t border_color = 0xFF666666;         // RGBA
+
+    // Text appearance
+    bool text_shadow = true;
+    uint32_t shadow_color = 0x000000FF;         // RGBA
+    uint32_t selected_text_color = 0xFFFFFFFF;  // RGBA
+    uint32_t disabled_text_color = 0x808080FF;  // RGBA
+    uint32_t value_color = 0xAAAAAAFF;          // RGBA
+
+    // Tab appearance
+    uint32_t tab_active_bg = 0xFF1A1A1AFF;
+    uint32_t tab_inactive_bg = 0xFF0A0A0AFF;
+    uint32_t tab_active_text = 0xFFFFFFFF;
+    uint32_t tab_inactive_text = 0xAAAAAAFF;
+
+    // Selection and UI elements
+    uint32_t selection_color = 0x8000AAFF;      // RGBA
+    uint32_t slider_bg_color = 0xFF404040FF;
+    uint32_t slider_fill_color = 0xFF00AAFF;
+    uint32_t slider_handle_color = 0xFFFFFFFF;
 
     // Layout
     int item_height = 40;

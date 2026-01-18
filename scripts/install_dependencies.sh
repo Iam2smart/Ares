@@ -63,6 +63,11 @@ if [ "$DISTRO" = "arch" ]; then
         libevdev \
         libudev.so
 
+    # OSD rendering libraries
+    pacman -S --needed --noconfirm \
+        cairo \
+        pango
+
     # System utilities
     pacman -S --needed --noconfirm \
         chrony \
