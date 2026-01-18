@@ -67,7 +67,8 @@ if [ "$DISTRO" = "arch" ]; then
     pacman -S --needed --noconfirm \
         chrony \
         linux-rt \
-        linux-rt-headers
+        linux-rt-headers \
+        openssh
 
     echo ""
     echo "Package installation complete!"

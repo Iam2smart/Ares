@@ -73,6 +73,19 @@ else
     echo "Warning: No DeckLink devices found."
 fi
 
+# Enable SSH for remote access
+echo "Enabling SSH service..."
+systemctl enable sshd.service
+systemctl start sshd.service
+echo "SSH service enabled. You can connect from your laptop using:"
+echo "  ssh user@<this-machine-ip>"
+echo ""
+echo "For improved security, consider:"
+echo "  1. Setting up SSH key authentication"
+echo "  2. Disabling password authentication in /etc/ssh/sshd_config"
+echo "  3. Restricting SSH access to specific IPs"
+echo ""
+
 # Disable unnecessary services
 echo "Disabling unnecessary services..."
 systemctl disable bluetooth.service 2>/dev/null || true
