@@ -51,6 +51,9 @@ struct MenuItem {
     std::string info_text;
     std::function<std::string()> info_callback; // Dynamic info
 
+    // Value change callback (called when menu value changes)
+    std::function<void()> on_change;
+
     // Display settings
     bool enabled = true;                    // Item is selectable
     bool visible = true;                    // Item is visible

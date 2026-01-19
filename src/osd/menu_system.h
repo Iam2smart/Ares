@@ -60,6 +60,10 @@ public:
     void setConfig(const OSDConfig& config) { m_config = config; }
     const OSDConfig& getConfig() const { return m_config; }
 
+    // Access menu structure (for wiring values and callbacks)
+    OSDMenuStructure& getMenuStructure() { return m_menu; }
+    const OSDMenuStructure& getMenuStructure() const { return m_menu; }
+
     // Statistics
     struct Stats {
         uint64_t inputs_processed = 0;

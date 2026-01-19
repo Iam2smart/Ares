@@ -392,6 +392,10 @@ void MenuSystem::selectCurrent() {
             if (item->toggle_value) {
                 *item->toggle_value = !*item->toggle_value;
                 LOG_DEBUG("OSD", "Toggled {} to {}", item->label, *item->toggle_value);
+                // Trigger value change callback
+                if (item->on_change) {
+                    item->on_change();
+                }
             }
             break;
 
@@ -404,6 +408,10 @@ void MenuSystem::selectCurrent() {
             if (item->enum_value && !item->enum_options.empty()) {
                 *item->enum_value = (*item->enum_value + 1) % item->enum_options.size();
                 LOG_DEBUG("OSD", "Changed {} to option {}", item->label, *item->enum_value);
+                // Trigger value change callback
+                if (item->on_change) {
+                    item->on_change();
+                }
             }
             break;
 
@@ -439,16 +447,27 @@ void MenuSystem::adjustValue(float delta) {
     MenuItem* item = getCurrentItem();
     if (!item) return;
 
+    bool value_changed = false;
+
     if (item->type == MenuItemType::SLIDER && item->float_value) {
         float step = item->step * delta * 10.0f;  // 10x step for faster adjustment
+        float old_value = *item->float_value;
         *item->float_value = std::clamp(*item->float_value + step,
                                        item->min_value, item->max_value);
+        value_changed = (*item->float_value != old_value);
         LOG_DEBUG("OSD", "Adjusted {} to {}", item->label, *item->float_value);
     } else if (item->type == MenuItemType::INTEGER && item->int_value) {
         int step = std::max(1, (int)(item->step * delta * 10.0f));
+        int old_value = *item->int_value;
         *item->int_value = std::clamp(*item->int_value + step,
                                      (int)item->min_value, (int)item->max_value);
+        value_changed = (*item->int_value != old_value);
         LOG_DEBUG("OSD", "Adjusted {} to {}", item->label, *item->int_value);
+    }
+
+    // Trigger value change callback
+    if (value_changed && item->on_change) {
+        item->on_change();
     }
 
     resetTimeout();

@@ -1,5 +1,6 @@
 #include "processing_pipeline.h"
 #include "core/logger.h"
+#include "../display/drm_display.h"
 #include <chrono>
 #include <cstring>
 
@@ -15,7 +16,7 @@ ProcessingPipeline::~ProcessingPipeline() {
     LOG_INFO("Processing", "ProcessingPipeline destroyed");
 }
 
-Result ProcessingPipeline::initialize(const ProcessingConfig& config) {
+Result ProcessingPipeline::initialize(const ProcessingConfig& config, display::DRMDisplay* display) {
     if (m_initialized) {
         LOG_WARN("Processing", "ProcessingPipeline already initialized");
         return Result::SUCCESS;
@@ -24,6 +25,13 @@ Result ProcessingPipeline::initialize(const ProcessingConfig& config) {
     LOG_INFO("Processing", "Initializing processing pipeline");
 
     m_config = config;
+
+    // Get output dimensions from display if provided
+    if (display) {
+        auto mode = display->getCurrentMode();
+        m_config.output_width = mode.width;
+        m_config.output_height = mode.height;
+    }
 
     // Initialize Vulkan context
     Result result = initializeVulkan();
@@ -156,6 +164,9 @@ Result ProcessingPipeline::initializeProcessors() {
                     // Load default menu structure
                     OSDMenuStructure menu = createDefaultOSDMenu();
                     m_menu_system->loadMenu(menu);
+
+                    // Wire menu items to processing config
+                    wireMenuToConfig();
                 }
             }
         }
@@ -465,6 +476,69 @@ void ProcessingPipeline::updateConfig(const ProcessingConfig& config) {
     }
 
     LOG_INFO("Processing", "Pipeline configuration updated");
+}
+
+void ProcessingPipeline::wireMenuToConfig() {
+    if (!m_menu_system) {
+        LOG_WARN("Processing", "Cannot wire menu - menu system not initialized");
+        return;
+    }
+
+    LOG_INFO("Processing", "Wiring menu items to processing config");
+
+    // Helper lambda to create update callback
+    auto createUpdateCallback = [this]() {
+        return [this]() {
+            // Apply updated config to processors
+            updateConfig(m_config);
+            LOG_DEBUG("Processing", "Config updated from menu change");
+        };
+    };
+
+    // Get tabs from menu
+    auto& menu_struct = m_menu_system->getMenuStructure();
+
+    // Wire Black Bar Detection items (Processing tab)
+    if (auto* black_bars_enable = menu_struct.getItem("processing", "black_bars_enable")) {
+        black_bars_enable->toggle_value = &m_config.black_bars.enabled;
+        black_bars_enable->on_change = createUpdateCallback();
+    }
+    if (auto* black_bars_crop = menu_struct.getItem("processing", "black_bars_crop")) {
+        black_bars_crop->toggle_value = &m_config.black_bars.auto_crop;
+        black_bars_crop->on_change = createUpdateCallback();
+    }
+
+    // Wire NLS items (NLS tab)
+    if (auto* nls_enable = menu_struct.getItem("nls", "nls_enable")) {
+        nls_enable->toggle_value = &m_config.nls.enabled;
+        nls_enable->on_change = createUpdateCallback();
+    }
+    if (auto* nls_h_stretch = menu_struct.getItem("nls", "nls_h_stretch")) {
+        nls_h_stretch->float_value = &m_config.nls.horizontal_stretch;
+        nls_h_stretch->on_change = createUpdateCallback();
+    }
+    if (auto* nls_v_stretch = menu_struct.getItem("nls", "nls_v_stretch")) {
+        nls_v_stretch->float_value = &m_config.nls.vertical_stretch;
+        nls_v_stretch->on_change = createUpdateCallback();
+    }
+
+    // Wire Tone Mapping items (Tone Mapping tab)
+    if (auto* target_nits = menu_struct.getItem("tone_mapping", "target_nits")) {
+        target_nits->float_value = &m_config.tone_mapping.target_nits;
+        target_nits->on_change = createUpdateCallback();
+    }
+    if (auto* tone_algo = menu_struct.getItem("tone_mapping", "tone_algorithm")) {
+        tone_algo->enum_value = reinterpret_cast<int*>(&m_config.tone_mapping.algorithm);
+        tone_algo->on_change = createUpdateCallback();
+    }
+
+    // Wire Dithering items (Enhancements tab)
+    if (auto* dither_enable = menu_struct.getItem("enhancements", "dither_enable")) {
+        dither_enable->toggle_value = &m_config.dithering.enabled;
+        dither_enable->on_change = createUpdateCallback();
+    }
+
+    LOG_INFO("Processing", "Menu wired to processing config successfully");
 }
 
 ProcessingPipeline::Stats ProcessingPipeline::getStats() const {
