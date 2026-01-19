@@ -2,6 +2,9 @@
 #include "core/logger.h"
 #include <algorithm>
 #include <cstring>
+#include <sstream>
+#include <cstdio>
+#include <map>
 
 namespace ares {
 namespace processing {
@@ -27,6 +30,24 @@ void BlackBarDetector::analyzeFrame(const VideoFrame& frame, const BlackBarConfi
         m_current_crop.right = config.manual_crop.right;
         m_current_crop.confidence = 1.0f;
         m_current_crop.is_symmetric = true;
+        return;
+    }
+
+    // FFmpeg bootstrap phase (skip detection during delay and bootstrap)
+    if (config.use_ffmpeg_bootstrap && !m_bootstrap_complete) {
+        // Calculate delay in frames (assume 60fps for simplicity)
+        uint64_t delay_frames = static_cast<uint64_t>(config.bootstrap_delay * 60.0f);
+
+        if (m_stats.frames_analyzed <= delay_frames) {
+            // Still in delay period - don't detect anything yet
+            return;
+        }
+
+        // Bootstrap period active - use FFmpeg-detected crop if available
+        if (m_bootstrap_crop.confidence > 0.0f) {
+            m_current_crop = m_bootstrap_crop;
+            m_stable_crop = m_bootstrap_crop;
+        }
         return;
     }
 
@@ -246,11 +267,170 @@ void BlackBarDetector::reset() {
     m_history.clear();
     m_current_crop = CropRegion();
     m_stable_crop = CropRegion();
+    m_bootstrap_crop = CropRegion();
+    m_bootstrap_complete = false;
+    m_bootstrap_delay_frames = 0;
     LOG_INFO("Processing", "BlackBarDetector reset");
 }
 
+Result BlackBarDetector::bootstrapWithFFmpeg(const std::string& video_source,
+                                             uint32_t frame_width, uint32_t frame_height,
+                                             const BlackBarConfig& config) {
+    if (m_bootstrap_complete) {
+        LOG_INFO("Processing", "Bootstrap already complete");
+        return Result::SUCCESS;
+    }
+
+    LOG_INFO("Processing", "Starting FFmpeg cropdetect bootstrap...");
+    LOG_INFO("Processing", "  Delay: %.1fs, Duration: %.1fs, Threshold: %d",
+            config.bootstrap_delay, config.bootstrap_duration, config.threshold);
+
+    // Build FFmpeg command
+    // We'll use ffmpeg to analyze the video file/stream and detect crop values
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd),
+            "ffmpeg -ss %.1f -i \"%s\" -t %.1f "
+            "-vf cropdetect=limit=%d/255:round=2:reset=0 "
+            "-f null - 2>&1 | grep -o 'crop=[0-9:]*'",
+            config.bootstrap_delay,
+            video_source.c_str(),
+            config.bootstrap_duration,
+            config.threshold);
+
+    LOG_DEBUG("Processing", "Running: %s", cmd);
+
+    // Execute command and capture output
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) {
+        LOG_ERROR("Processing", "Failed to execute FFmpeg cropdetect");
+        return Result::ERROR_GENERIC;
+    }
+
+    // Read all crop lines
+    std::string all_output;
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), pipe)) {
+        all_output += buffer;
+    }
+
+    int ret = pclose(pipe);
+    if (ret != 0 && ret != 256) {  // 256 = normal exit from grep with matches
+        LOG_WARN("Processing", "FFmpeg cropdetect returned non-zero: %d", ret);
+    }
+
+    if (all_output.empty()) {
+        LOG_WARN("Processing", "No crop data detected by FFmpeg");
+        // Mark as complete anyway to avoid infinite waiting
+        m_bootstrap_complete = true;
+        return Result::ERROR_GENERIC;
+    }
+
+    // Parse the output to find the most common crop
+    CropRegion best_crop;
+    if (parseFFmpegCropOutput(all_output, frame_width, frame_height, best_crop)) {
+        LOG_INFO("Processing", "FFmpeg detected crop: top=%d bottom=%d left=%d right=%d",
+                best_crop.top, best_crop.bottom, best_crop.left, best_crop.right);
+
+        // Seed the detection history with bootstrap results
+        seedHistoryWithBootstrap(best_crop);
+
+        m_bootstrap_crop = best_crop;
+        m_stable_crop = best_crop;
+        m_current_crop = best_crop;
+        m_bootstrap_complete = true;
+
+        LOG_INFO("Processing", "FFmpeg bootstrap complete");
+        return Result::SUCCESS;
+    } else {
+        LOG_WARN("Processing", "Failed to parse FFmpeg crop output");
+        m_bootstrap_complete = true;
+        return Result::ERROR_GENERIC;
+    }
+}
+
+bool BlackBarDetector::parseFFmpegCropOutput(const std::string& output,
+                                             uint32_t frame_width, uint32_t frame_height,
+                                             CropRegion& result) {
+    // FFmpeg cropdetect outputs lines like: "crop=1920:800:0:140"
+    // Format: crop=width:height:x:y
+    // We need to find the most common crop value
+
+    std::map<std::string, int> crop_counts;
+    std::string last_crop;
+
+    std::istringstream stream(output);
+    std::string line;
+
+    while (std::getline(stream, line)) {
+        size_t crop_pos = line.find("crop=");
+        if (crop_pos != std::string::npos) {
+            std::string crop_str = line.substr(crop_pos + 5);
+            // Remove trailing whitespace/newline
+            size_t end = crop_str.find_first_not_of("0123456789:");
+            if (end != std::string::npos) {
+                crop_str = crop_str.substr(0, end);
+            }
+
+            if (!crop_str.empty()) {
+                crop_counts[crop_str]++;
+                last_crop = crop_str;
+            }
+        }
+    }
+
+    if (crop_counts.empty()) {
+        return false;
+    }
+
+    // Find most common crop value
+    std::string best_crop_str;
+    int max_count = 0;
+    for (const auto& pair : crop_counts) {
+        if (pair.second > max_count) {
+            max_count = pair.second;
+            best_crop_str = pair.first;
+        }
+    }
+
+    // Parse crop string: "width:height:x:y"
+    int crop_w = 0, crop_h = 0, crop_x = 0, crop_y = 0;
+    if (sscanf(best_crop_str.c_str(), "%d:%d:%d:%d", &crop_w, &crop_h, &crop_x, &crop_y) != 4) {
+        LOG_ERROR("Processing", "Failed to parse crop string: %s", best_crop_str.c_str());
+        return false;
+    }
+
+    // Convert FFmpeg format (width, height, x, y) to our format (top, bottom, left, right)
+    result.left = crop_x;
+    result.top = crop_y;
+    result.right = (frame_width - crop_w - crop_x);
+    result.bottom = (frame_height - crop_h - crop_y);
+
+    result.confidence = std::min(1.0f, (float)max_count / 10.0f);  // Higher count = higher confidence
+    result.is_symmetric = isSymmetric(result.top, result.bottom, result.left, result.right,
+                                     frame_width, frame_height);
+
+    LOG_DEBUG("Processing", "Parsed crop: %dx%d at (%d,%d) -> TBLR={%d,%d,%d,%d} (count=%d)",
+             crop_w, crop_h, crop_x, crop_y,
+             result.top, result.bottom, result.left, result.right, max_count);
+
+    return true;
+}
+
+void BlackBarDetector::seedHistoryWithBootstrap(const CropRegion& bootstrap_crop) {
+    // Fill history with bootstrap results for immediate stability
+    m_history.clear();
+    for (size_t i = 0; i < m_max_history; i++) {
+        m_history.push_back(bootstrap_crop);
+    }
+
+    LOG_DEBUG("Processing", "Seeded detection history with %zu bootstrap samples",
+             m_history.size());
+}
+
 BlackBarDetector::Stats BlackBarDetector::getStats() const {
-    return m_stats;
+    Stats stats = m_stats;
+    stats.bootstrap_complete = m_bootstrap_complete;
+    return stats;
 }
 
 } // namespace processing
