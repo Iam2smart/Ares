@@ -83,7 +83,7 @@ struct BlackBarConfig {
     bool enabled = true;
 
     // FFmpeg bootstrap (high-accuracy initial detection)
-    bool use_ffmpeg_bootstrap = true;   // Use FFmpeg cropdetect for initial detection
+    bool use_ffmpeg_bootstrap = false;  // Use FFmpeg cropdetect for initial detection (disabled by default for live sources)
     float bootstrap_delay = 4.0f;       // Seconds to wait before bootstrap (skip dark openings)
     float bootstrap_duration = 2.0f;    // Seconds to run FFmpeg detection
 
