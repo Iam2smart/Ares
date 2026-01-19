@@ -2,6 +2,7 @@ add_library(ares_display STATIC
     drm_display.cpp
     vulkan_presenter.cpp
     edid_parser.cpp
+    frame_rate_matcher.cpp
 )
 
 target_include_directories(ares_display PUBLIC
@@ -13,7 +14,7 @@ target_include_directories(ares_display PUBLIC
 
 target_link_libraries(ares_display
     ares_core
-    ares_processing
+    ares_capture
     ${LIBDRM_LIBRARIES}
     ${Vulkan_LIBRARIES}
 )

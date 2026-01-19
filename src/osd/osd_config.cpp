@@ -180,7 +180,99 @@ OSDMenuStructure createDefaultOSDMenu() {
 
     menu.tabs.push_back(tone_mapping_tab);
 
-    // Tab 3: Color
+    // Tab 4: Enhancements
+    Menu enhancements_tab;
+    enhancements_tab.id = "enhancements";
+    enhancements_tab.title = "Enhance";
+
+    // Dithering
+    MenuItem dither_enable;
+    dither_enable.id = "dither_enable";
+    dither_enable.label = "Dithering";
+    dither_enable.type = MenuItemType::TOGGLE;
+    dither_enable.tooltip = "Eliminates banding in gradients";
+    enhancements_tab.items.push_back(dither_enable);
+
+    MenuItem dither_method;
+    dither_method.id = "dither_method";
+    dither_method.label = "  Method";
+    dither_method.type = MenuItemType::ENUM;
+    dither_method.enum_options = {"Blue Noise", "White Noise", "Ordered", "Error Diffusion"};
+    dither_method.tooltip = "Dithering algorithm (Blue Noise = best quality)";
+    enhancements_tab.items.push_back(dither_method);
+
+    MenuItem dither_temporal;
+    dither_temporal.id = "dither_temporal";
+    dither_temporal.label = "  Temporal";
+    dither_temporal.type = MenuItemType::TOGGLE;
+    dither_temporal.tooltip = "Temporal dithering reduces flicker";
+    enhancements_tab.items.push_back(dither_temporal);
+
+    // Debanding
+    MenuItem deband_enable;
+    deband_enable.id = "deband_enable";
+    deband_enable.label = "Debanding";
+    deband_enable.type = MenuItemType::TOGGLE;
+    deband_enable.tooltip = "Removes color banding from low-bitrate sources";
+    enhancements_tab.items.push_back(deband_enable);
+
+    MenuItem deband_iterations;
+    deband_iterations.id = "deband_iterations";
+    deband_iterations.label = "  Iterations";
+    deband_iterations.type = MenuItemType::ENUM;
+    deband_iterations.enum_options = {"1", "2", "3", "4"};
+    deband_iterations.tooltip = "Number of debanding passes (higher = better but slower)";
+    enhancements_tab.items.push_back(deband_iterations);
+
+    MenuItem deband_threshold;
+    deband_threshold.id = "deband_threshold";
+    deband_threshold.label = "  Threshold";
+    deband_threshold.type = MenuItemType::SLIDER;
+    deband_threshold.min_value = 1.0f;
+    deband_threshold.max_value = 20.0f;
+    deband_threshold.step = 1.0f;
+    deband_threshold.tooltip = "Detection threshold (lower = more aggressive)";
+    enhancements_tab.items.push_back(deband_threshold);
+
+    MenuItem deband_grain;
+    deband_grain.id = "deband_grain";
+    deband_grain.label = "  Grain";
+    deband_grain.type = MenuItemType::SLIDER;
+    deband_grain.min_value = 0.0f;
+    deband_grain.max_value = 20.0f;
+    deband_grain.step = 1.0f;
+    deband_grain.tooltip = "Add grain to hide remaining banding";
+    enhancements_tab.items.push_back(deband_grain);
+
+    // Chroma Upsampling
+    MenuItem chroma_enable;
+    chroma_enable.id = "chroma_enable";
+    chroma_enable.label = "Chroma Upsampling";
+    chroma_enable.type = MenuItemType::TOGGLE;
+    chroma_enable.tooltip = "High-quality 4:2:0 to 4:4:4 chroma upscaling";
+    enhancements_tab.items.push_back(chroma_enable);
+
+    MenuItem chroma_algorithm;
+    chroma_algorithm.id = "chroma_algorithm";
+    chroma_algorithm.label = "  Algorithm";
+    chroma_algorithm.type = MenuItemType::ENUM;
+    chroma_algorithm.enum_options = {"Bilinear", "Bicubic", "Lanczos", "EWA Lanczos", "Spline16", "Spline36", "Spline64"};
+    chroma_algorithm.tooltip = "Chroma upscaling algorithm (EWA Lanczos = best)";
+    enhancements_tab.items.push_back(chroma_algorithm);
+
+    MenuItem chroma_antiring;
+    chroma_antiring.id = "chroma_antiring";
+    chroma_antiring.label = "  Anti-Ringing";
+    chroma_antiring.type = MenuItemType::SLIDER;
+    chroma_antiring.min_value = 0.0f;
+    chroma_antiring.max_value = 1.0f;
+    chroma_antiring.step = 0.1f;
+    chroma_antiring.tooltip = "Reduce ringing artifacts (0.8 recommended)";
+    enhancements_tab.items.push_back(chroma_antiring);
+
+    menu.tabs.push_back(enhancements_tab);
+
+    // Tab 5: Color
     Menu color_tab;
     color_tab.id = "color";
     color_tab.title = "Color";
@@ -278,6 +370,38 @@ OSDMenuStructure createDefaultOSDMenu() {
     color_space.info_text = "Auto (BT.709/BT.2020)";
     color_space.tooltip = "Automatically selected based on HDR metadata";
     info_tab.items.push_back(color_space);
+
+    MenuItem detected_fps;
+    detected_fps.id = "detected_fps";
+    detected_fps.label = "Detected Frame Rate";
+    detected_fps.type = MenuItemType::INFO;
+    detected_fps.info_text = "Detecting...";
+    detected_fps.tooltip = "Auto-detected source frame rate from DeckLink";
+    info_tab.items.push_back(detected_fps);
+
+    MenuItem fps_stable;
+    fps_stable.id = "fps_stable";
+    fps_stable.label = "Frame Rate Stable";
+    fps_stable.type = MenuItemType::INFO;
+    fps_stable.info_text = "No";
+    fps_stable.tooltip = "Frame rate detection stability status";
+    info_tab.items.push_back(fps_stable);
+
+    MenuItem display_refresh;
+    display_refresh.id = "display_refresh";
+    display_refresh.label = "Display Refresh Rate";
+    display_refresh.type = MenuItemType::INFO;
+    display_refresh.info_text = "60.00 Hz";
+    display_refresh.tooltip = "Current display refresh rate";
+    info_tab.items.push_back(display_refresh);
+
+    MenuItem refresh_matched;
+    refresh_matched.id = "refresh_matched";
+    refresh_matched.label = "Refresh Matched";
+    refresh_matched.type = MenuItemType::INFO;
+    refresh_matched.info_text = "Unknown";
+    refresh_matched.tooltip = "Display refresh rate matches source (eliminates judder)";
+    info_tab.items.push_back(refresh_matched);
 
     menu.tabs.push_back(info_tab);
 

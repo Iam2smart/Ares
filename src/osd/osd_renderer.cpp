@@ -321,6 +321,170 @@ void OSDRenderer::drawProgressBar(float progress, int x, int y, int width, int h
     cairo_stroke(m_cr);
 }
 
+void OSDRenderer::drawVolumeOverlay(int level, bool muted, float opacity) {
+    if (!m_initialized) return;
+
+    // Volume overlay dimensions and position (bottom right corner)
+    const int overlay_width = 300;
+    const int overlay_height = 120;
+    const int margin = 40;
+    const int x = m_width - overlay_width - margin;
+    const int y = m_height - overlay_height - margin;
+
+    // Background with rounded corners and opacity
+    cairo_save(m_cr);
+
+    // Set global opacity
+    cairo_push_group(m_cr);
+
+    // Draw rounded rectangle background
+    const int radius = 12;
+    const double degrees = M_PI / 180.0;
+
+    cairo_new_sub_path(m_cr);
+    cairo_arc(m_cr, x + overlay_width - radius, y + radius, radius, -90 * degrees, 0 * degrees);
+    cairo_arc(m_cr, x + overlay_width - radius, y + overlay_height - radius, radius, 0 * degrees, 90 * degrees);
+    cairo_arc(m_cr, x + radius, y + overlay_height - radius, radius, 90 * degrees, 180 * degrees);
+    cairo_arc(m_cr, x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
+    cairo_close_path(m_cr);
+
+    // Background color with transparency
+    setColor(0x202020E6);  // Dark background, 90% opacity
+    cairo_fill_preserve(m_cr);
+
+    // Border
+    cairo_set_line_width(m_cr, 2.0);
+    setColor(0x4080FFFF);  // Blue border
+    cairo_stroke(m_cr);
+
+    // Draw volume icon (speaker symbol)
+    const int icon_x = x + 20;
+    const int icon_y = y + 20;
+    const int icon_size = 40;
+
+    cairo_save(m_cr);
+
+    if (muted) {
+        // Muted icon (speaker with X)
+        setColor(0xFF4040FF);  // Red for muted
+
+        // Speaker body
+        cairo_move_to(m_cr, icon_x, icon_y + 10);
+        cairo_line_to(m_cr, icon_x + 10, icon_y + 10);
+        cairo_line_to(m_cr, icon_x + 20, icon_y);
+        cairo_line_to(m_cr, icon_x + 20, icon_y + icon_size);
+        cairo_line_to(m_cr, icon_x + 10, icon_y + 30);
+        cairo_line_to(m_cr, icon_x, icon_y + 30);
+        cairo_close_path(m_cr);
+        cairo_fill(m_cr);
+
+        // X mark
+        cairo_set_line_width(m_cr, 3.0);
+        cairo_move_to(m_cr, icon_x + 25, icon_y + 8);
+        cairo_line_to(m_cr, icon_x + 37, icon_y + 32);
+        cairo_stroke(m_cr);
+        cairo_move_to(m_cr, icon_x + 37, icon_y + 8);
+        cairo_line_to(m_cr, icon_x + 25, icon_y + 32);
+        cairo_stroke(m_cr);
+    } else {
+        // Normal volume icon (speaker with sound waves)
+        setColor(0x4080FFFF);  // Blue
+
+        // Speaker body
+        cairo_move_to(m_cr, icon_x, icon_y + 10);
+        cairo_line_to(m_cr, icon_x + 10, icon_y + 10);
+        cairo_line_to(m_cr, icon_x + 20, icon_y);
+        cairo_line_to(m_cr, icon_x + 20, icon_y + icon_size);
+        cairo_line_to(m_cr, icon_x + 10, icon_y + 30);
+        cairo_line_to(m_cr, icon_x, icon_y + 30);
+        cairo_close_path(m_cr);
+        cairo_fill(m_cr);
+
+        // Sound waves (based on volume level)
+        cairo_set_line_width(m_cr, 2.5);
+        cairo_set_line_cap(m_cr, CAIRO_LINE_CAP_ROUND);
+
+        if (level > 0) {
+            // First wave (always visible if not muted)
+            cairo_arc(m_cr, icon_x + 20, icon_y + 20, 8, -30 * degrees, 30 * degrees);
+            cairo_stroke(m_cr);
+        }
+
+        if (level > 33) {
+            // Second wave
+            cairo_arc(m_cr, icon_x + 20, icon_y + 20, 14, -30 * degrees, 30 * degrees);
+            cairo_stroke(m_cr);
+        }
+
+        if (level > 66) {
+            // Third wave (high volume)
+            cairo_arc(m_cr, icon_x + 20, icon_y + 20, 20, -30 * degrees, 30 * degrees);
+            cairo_stroke(m_cr);
+        }
+    }
+
+    cairo_restore(m_cr);
+
+    // Volume level text
+    const int text_x = x + 20;
+    const int text_y = y + 70;
+
+    cairo_save(m_cr);
+    setFont(m_config.font_family, 36);
+
+    char volume_text[32];
+    if (muted) {
+        snprintf(volume_text, sizeof(volume_text), "MUTED");
+        setColor(0xFF4040FF);  // Red
+    } else {
+        snprintf(volume_text, sizeof(volume_text), "%d", level);
+        setColor(0xFFFFFFFF);  // White
+    }
+
+    pango_layout_set_text(m_layout, volume_text, -1);
+    cairo_move_to(m_cr, text_x, text_y);
+    pango_cairo_show_layout(m_cr, m_layout);
+    cairo_restore(m_cr);
+
+    // Volume bar
+    if (!muted) {
+        const int bar_x = x + 100;
+        const int bar_y = y + 80;
+        const int bar_width = 170;
+        const int bar_height = 20;
+
+        // Background
+        drawRectangle(bar_x, bar_y, bar_width, bar_height, 0x404040FF, true);
+
+        // Fill based on volume level
+        int fill_width = (level * bar_width) / 100;
+
+        // Color gradient based on level
+        uint32_t bar_color;
+        if (level < 33) {
+            bar_color = 0x40FF40FF;  // Green (low)
+        } else if (level < 66) {
+            bar_color = 0xFFFF40FF;  // Yellow (medium)
+        } else {
+            bar_color = 0xFF8040FF;  // Orange (high)
+        }
+
+        drawRectangle(bar_x, bar_y, fill_width, bar_height, bar_color, true);
+
+        // Border
+        cairo_set_line_width(m_cr, 1.5);
+        setColor(0xFFFFFFFF);
+        cairo_rectangle(m_cr, bar_x, bar_y, bar_width, bar_height);
+        cairo_stroke(m_cr);
+    }
+
+    // Pop group and apply opacity
+    cairo_pop_group_to_source(m_cr);
+    cairo_paint_with_alpha(m_cr, opacity);
+
+    cairo_restore(m_cr);
+}
+
 const uint8_t* OSDRenderer::getSurfaceData() const {
     if (!m_initialized || !m_surface) {
         return nullptr;

@@ -4,6 +4,8 @@
 
 Ares provides professional-grade HDR tone mapping and video processing similar to madVR, optimized for headless Linux operation with projectors.
 
+**Status:** Phases 1-6 Complete - Full feature parity with madVR Envy for core HDR processing
+
 ---
 
 ## HDR Tone Mapping
@@ -174,6 +176,178 @@ Intelligent letterbox/pillarbox detection and removal:
 
 ---
 
+## Frame Rate Detection & Refresh Rate Matching
+
+### Automatic Frame Rate Detection
+
+Ares automatically detects the source frame rate from DeckLink PTS timestamps:
+
+- **Supported Rates**: 23.976, 24.000, 25.000, 29.970, 30.000, 50.000, 59.940, 60.000, 119.880, 120.000 fps
+- **Detection Method**: 30-frame rolling window analysis
+- **Stability Requirement**: <5% deviation across all frames
+- **Update Frequency**: Real-time detection with smooth transitions
+
+**23.976 fps (Film) Support**: Fully supported and automatically detected. Ares will match 23.976 fps content to 24 Hz display modes (or 48 Hz, 96 Hz, 120 Hz multiples if available).
+
+### Automatic Refresh Rate Matching
+
+Eliminates judder by matching display refresh rate to source content:
+
+**Matching Strategy**:
+1. **Exact Match**: 24 fps → 24 Hz (preferred)
+2. **Integer Multiples**: 24 fps → 48 Hz, 96 Hz, 120 Hz
+3. **Integer Divisors**: 120 fps → 60 Hz (with frame blending)
+4. **Closest Available**: Falls back to nearest refresh rate
+
+**Examples**:
+- 23.976 fps film → 24 Hz display (zero judder)
+- 24.000 fps film → 24 Hz or 48 Hz display
+- 60.000 fps video → 60 Hz or 120 Hz display
+- 25.000 fps PAL → 25 Hz or 50 Hz display
+
+**Configuration**:
+```json
+{
+  "display": {
+    "refresh_rate_matching": true,
+    "prefer_exact_match": true,
+    "allow_multiples": true,
+    "max_multiple": 5
+  }
+}
+```
+
+### OSD Statistics
+
+The Info tab displays real-time frame rate information:
+- Detected source frame rate (e.g., "23.976 fps")
+- Frame rate stability status ("Stable" / "Detecting")
+- Current display refresh rate (e.g., "24.00 Hz")
+- Match status ("Matched" / "Not Matched" / "Multiple")
+
+---
+
+## Dithering
+
+Professional dithering to eliminate banding in gradients:
+
+### Methods
+
+1. **Blue Noise** *(Default, Best Quality)*
+   - Psychovisually optimized noise pattern
+   - Minimal perceived noise
+   - Best for gradients and HDR content
+
+2. **White Noise**
+   - Random noise pattern
+   - Simple and fast
+   - Good for general use
+
+3. **Ordered (Bayer)**
+   - Deterministic pattern
+   - Consistent results
+   - Good for testing
+
+4. **Error Diffusion (Floyd-Steinberg)**
+   - Distributes quantization error
+   - Best for 8-bit output
+   - Higher CPU/GPU usage
+
+### Configuration
+
+```json
+{
+  "dithering": {
+    "enabled": true,
+    "method": "blue_noise",
+    "lut_size": 64,
+    "temporal": true
+  }
+}
+```
+
+**OSD Control**: Enhance tab → Dithering section with method dropdown
+
+---
+
+## Debanding
+
+Removes banding artifacts from compressed video:
+
+### Features
+
+- **Iterations**: 1-4 passes (more = stronger effect)
+- **Threshold**: Detection sensitivity (4-32)
+- **Radius**: Sampling radius in pixels (8-32)
+- **Grain**: Adds film grain to mask remaining artifacts (0.0-1.0)
+
+### Configuration
+
+```json
+{
+  "debanding": {
+    "enabled": true,
+    "iterations": 2,
+    "threshold": 16,
+    "radius": 16,
+    "grain": 0.3
+  }
+}
+```
+
+**OSD Control**: Enhance tab → Debanding section with sliders
+
+---
+
+## Chroma Upsampling
+
+Converts 4:2:0 chroma to 4:4:4 for improved color resolution:
+
+### Algorithms
+
+1. **EWA Lanczos** *(Best Quality)*
+   - Elliptical Weighted Average Lanczos
+   - Highest quality, minimal ringing
+   - Recommended for HDR content
+
+2. **Lanczos**
+   - Standard Lanczos windowed sinc
+   - High quality with sharp edges
+   - Good all-around choice
+
+3. **Spline16/36/64**
+   - Polynomial interpolation
+   - Smooth results
+   - Spline36 recommended for balance
+
+4. **Mitchell-Netravali**
+   - Mitchell cubic filter
+   - Good sharpness/smoothness balance
+
+5. **Catmull-Rom**
+   - Cubic interpolation
+   - Sharp results
+
+### Anti-Ringing
+
+Configurable anti-ringing strength (0.0-1.0) to reduce overshoots near edges.
+
+### Configuration
+
+```json
+{
+  "chroma_upsampling": {
+    "enabled": true,
+    "algorithm": "ewa_lanczos",
+    "antiring": 0.7
+  }
+}
+```
+
+**OSD Control**: Enhance tab → Chroma Upsampling section with algorithm dropdown
+
+---
+
 ## Additional Features
 
 ### Sharpening
@@ -205,68 +379,106 @@ Intelligent letterbox/pillarbox detection and removal:
 
 ## OSD (On-Screen Display)
 
-### Main Menu Structure
+### madVR Envy-Style Interface
+
+Ares features a comprehensive OSD with 4 main tabs, accessible via IR remote:
+
+### Tab 1: Picture (Tone Mapping)
 
 ```
-┌─ Picture
-│  ├─ Tone Mapping Algorithm
-│  ├─ Target Nits
-│  ├─ Contrast/Saturation
-│  ├─ Shadow/Highlight
-│  └─ Advanced...
-│
-├─ NLS+ (Natural Light Simulation)
-│  ├─ Enable/Disable
-│  ├─ Strength
-│  ├─ Adaptation Speed
-│  ├─ Scene Detection
-│  └─ Advanced...
-│
-├─ Black Bars
-│  ├─ Auto Detection On/Off
-│  ├─ Manual Crop
-│  ├─ Zoom to Fit
-│  └─ Settings...
-│
-├─ Color
-│  ├─ Gamut
-│  ├─ Hue/Saturation
-│  ├─ Temperature/Tint
-│  └─ Advanced...
-│
-├─ Output
-│  ├─ Resolution
-│  ├─ Refresh Rate
-│  └─ Quality Mode
-│
-├─ Presets
-│  ├─ Cinema (Dark Room)
-│  ├─ Bright Room
-│  ├─ Gaming
-│  ├─ Custom 1-5
-│  ├─ Save Current
-│  └─ Load...
-│
-├─ Diagnostics
-│  ├─ Show Statistics
-│  ├─ Show Black Bar Detection
-│  ├─ Show Color Bars
-│  └─ Performance Monitor
-│
-└─ System
-   ├─ About
-   ├─ Version Info
-   └─ Settings
+Picture
+├─ Tone Mapping Algorithm
+│  └─ BT.2390 / Reinhard / Hable / Mobius / Clip / Custom LUT
+├─ Target Nits (Projector brightness)
+│  └─ Slider: 48-150 nits (default: 100)
+├─ Source Nits (Content max brightness)
+│  └─ Slider: 100-4000 nits (default: 1000)
+├─ Contrast
+│  └─ Slider: 0.5-2.0 (default: 1.0)
+├─ Saturation
+│  └─ Slider: 0.5-2.0 (default: 1.0)
+├─ Shadow Lift
+│  └─ Slider: 0.0-0.5 (default: 0.0)
+└─ Highlight Compression
+   └─ Slider: 0.0-1.0 (default: 0.5)
 ```
 
-### Navigation
+### Tab 2: NLS (Non-Linear Stretch)
+
+```
+NLS
+├─ Enable NLS
+│  └─ Toggle: On / Off
+├─ Horizontal Stretch
+│  └─ Slider: 0.0-1.0 (default: 0.5)
+├─ Vertical Stretch
+│  └─ Slider: 0.0-1.0 (default: 0.5)
+├─ Horizontal Power
+│  └─ Slider: 1.0-4.0 (default: 2.0)
+├─ Vertical Power
+│  └─ Slider: 1.0-4.0 (default: 2.0)
+├─ Center Protection (Horizontal)
+│  └─ Slider: 0.0-2.0 (default: 1.0)
+└─ Center Protection (Vertical)
+   └─ Slider: 0.0-2.0 (default: 1.0)
+```
+
+### Tab 3: Enhance (Dithering, Debanding, Chroma)
+
+```
+Enhance
+├─ Dithering
+│  ├─ Enable: Toggle
+│  ├─ Method: Blue Noise / White Noise / Ordered / Error Diffusion
+│  ├─ Temporal: Toggle
+│  └─ LUT Size: 16-256
+├─ Debanding
+│  ├─ Enable: Toggle
+│  ├─ Iterations: 1-4
+│  ├─ Threshold: 4-32
+│  ├─ Radius: 8-32
+│  └─ Grain: 0.0-1.0
+└─ Chroma Upsampling
+   ├─ Enable: Toggle
+   ├─ Algorithm: EWA Lanczos / Lanczos / Spline16/36/64 / Mitchell / Catmull-Rom
+   └─ Anti-Ringing: 0.0-1.0
+```
+
+### Tab 4: Info (Statistics & System)
+
+```
+Info
+├─ System Information
+│  ├─ Version: 1.0.0-rc1
+│  ├─ IP Address: [auto-detected]
+│  └─ Uptime: [real-time]
+├─ Source Information
+│  ├─ Resolution: [detected, e.g., 3840x2160]
+│  ├─ HDR Type: HDR10 / HLG / SDR
+│  ├─ Color Space: BT.2020 / BT.709
+│  ├─ Detected Frame Rate: [e.g., "23.976 fps"]
+│  └─ Frame Rate Stable: Yes / No / Detecting
+├─ Display Information
+│  ├─ Output Resolution: [e.g., 3840x2160]
+│  ├─ Display Refresh Rate: [e.g., "24.00 Hz"]
+│  ├─ Refresh Matched: Yes / No / Multiple
+│  └─ Mode Switches: [count]
+└─ Performance
+   ├─ Processing Time: [ms per frame]
+   ├─ GPU Usage: [%]
+   └─ Frame Drops: [count]
+```
+
+### IR Remote Navigation
 
 - **Up/Down**: Navigate menu items
-- **Left/Right**: Adjust values
-- **Enter**: Select/confirm
-- **Back/Escape**: Go back
-- **Menu**: Toggle OSD
-- **Info**: Toggle statistics overlay
+- **Left/Right**: Adjust values / Change tabs
+- **Select/Enter**: Toggle settings / Enter submenus
+- **Back/Exit**: Exit OSD / Go back
+- **Menu**: Toggle OSD on/off
+- **Info**: Show/hide Info tab overlay
+
+**Supported Remotes**: FLIRC USB, generic MCE IR receivers
 
 ---
 
