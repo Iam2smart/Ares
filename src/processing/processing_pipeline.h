@@ -13,6 +13,9 @@
 #include <functional>
 
 namespace ares {
+namespace display {
+    class DRMDisplay;  // Forward declaration
+}
 namespace processing {
 
 // Main processing pipeline that coordinates all processing stages
@@ -22,7 +25,7 @@ public:
     ~ProcessingPipeline();
 
     // Initialize the entire processing pipeline
-    Result initialize(const ProcessingConfig& config);
+    Result initialize(const ProcessingConfig& config, display::DRMDisplay* display = nullptr);
 
     // Shutdown and cleanup
     void shutdown();
@@ -46,6 +49,9 @@ public:
 
     // Get current configuration
     const ProcessingConfig& getConfig() const { return m_config; }
+
+    // Wire menu items to processing config (bind values and callbacks)
+    void wireMenuToConfig();
 
     // Check if initialized
     bool isInitialized() const { return m_initialized; }

@@ -4,6 +4,7 @@
 #include <ares/processing_config.h>
 #include "vulkan_context.h"
 #include <vulkan/vulkan.h>
+#include <libplacebo/gpu.h>
 
 namespace ares {
 namespace processing {
@@ -16,8 +17,8 @@ public:
     NLSShader();
     ~NLSShader();
 
-    // Initialize NLS shader with Vulkan context
-    Result initialize(VulkanContext* vk_context);
+    // Initialize NLS shader with Vulkan context and libplacebo GPU
+    Result initialize(VulkanContext* vk_context, pl_gpu gpu = nullptr);
 
     // Process frame with NLS warping
     Result processFrame(const VideoFrame& input, VideoFrame& output,
@@ -79,6 +80,9 @@ private:
     VkDevice m_device = VK_NULL_HANDLE;
     VkQueue m_compute_queue = VK_NULL_HANDLE;
 
+    // libplacebo GPU (for simplified GPU operations)
+    pl_gpu m_gpu = nullptr;
+
     // Pipeline
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     VkPipelineLayout m_pipeline_layout = VK_NULL_HANDLE;
@@ -89,7 +93,11 @@ private:
     // Shader
     VkShaderModule m_shader_module = VK_NULL_HANDLE;
 
-    // Textures
+    // libplacebo textures
+    pl_tex m_input_tex = nullptr;
+    pl_tex m_output_tex = nullptr;
+
+    // Legacy Vulkan handles (kept for compatibility)
     VkImage m_input_image = VK_NULL_HANDLE;
     VkDeviceMemory m_input_memory = VK_NULL_HANDLE;
     VkImageView m_input_view = VK_NULL_HANDLE;
