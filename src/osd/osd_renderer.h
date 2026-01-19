@@ -43,6 +43,9 @@ public:
                    int x, int y, int width, bool selected, const OSDConfig& config);
     void drawProgressBar(float progress, int x, int y, int width, int height, uint32_t color);
 
+    // Volume overlay (bottom right corner)
+    void drawVolumeOverlay(int level, bool muted, float opacity = 1.0f);
+
     // Get rendered surface data (RGBA8)
     const uint8_t* getSurfaceData() const;
     size_t getSurfaceDataSize() const;

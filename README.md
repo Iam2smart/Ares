@@ -73,6 +73,12 @@ Ares is a complete HDR video processing pipeline for Linux that rivals madVR on 
   - Full OSD navigation (up/down/left/right/select/back)
   - Customizable key mappings
 
+- **Receiver Volume Integration**
+  - Network control for Integra/Onkyo receivers (EISCP protocol)
+  - Volume overlay display (bottom right corner)
+  - Auto-hide with fade animation
+  - Real-time volume monitoring
+
 ### System Integration
 
 - **Headless Operation**
@@ -149,6 +155,7 @@ sudo systemctl start ares.service
 - [**docs/FEATURES.md**](docs/FEATURES.md) - Detailed feature documentation and comparisons
 - [**docs/MADVR_FEATURES.md**](docs/MADVR_FEATURES.md) - madVR feature parity analysis
 - [**docs/REMOTE_ACCESS.md**](docs/REMOTE_ACCESS.md) - SSH and remote management setup
+- [**docs/RECEIVER_INTEGRATION.md**](docs/RECEIVER_INTEGRATION.md) - Integra/Onkyo receiver volume display
 
 ## Configuration
 
