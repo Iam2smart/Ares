@@ -37,6 +37,9 @@ public:
     };
     Stats getStats() const;
 
+    // Get libplacebo GPU (for use by other processors)
+    pl_gpu getGPU() const { return m_gpu; }
+
 private:
     // Initialize libplacebo
     Result initializePlacebo(VulkanContext* vk_context);

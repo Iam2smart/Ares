@@ -76,23 +76,23 @@ Result ProcessingPipeline::initializeProcessors() {
     m_black_bar_detector = std::make_unique<BlackBarDetector>();
     LOG_INFO("Processing", "Black bar detector initialized");
 
-    // Initialize NLS shader
-    if (m_config.nls.enabled) {
-        m_nls_shader = std::make_unique<NLSShader>();
-        Result result = m_nls_shader->initialize(m_vulkan_context.get());
-        if (result != Result::SUCCESS) {
-            LOG_ERROR("Processing", "Failed to initialize NLS shader");
-            return result;
-        }
-        LOG_INFO("Processing", "NLS shader initialized (aspect ratio warping)");
-    }
-
-    // Initialize tone mapper
+    // Initialize tone mapper FIRST (provides libplacebo GPU for other processors)
     m_tone_mapper = std::make_unique<PlaceboRenderer>();
     Result result = m_tone_mapper->initialize(m_vulkan_context.get());
     if (result != Result::SUCCESS) {
         LOG_ERROR("Processing", "Failed to initialize tone mapper");
         return result;
+    }
+
+    // Initialize NLS shader (uses libplacebo GPU from tone mapper)
+    if (m_config.nls.enabled) {
+        m_nls_shader = std::make_unique<NLSShader>();
+        result = m_nls_shader->initialize(m_vulkan_context.get(), m_tone_mapper->getGPU());
+        if (result != Result::SUCCESS) {
+            LOG_ERROR("Processing", "Failed to initialize NLS shader");
+            return result;
+        }
+        LOG_INFO("Processing", "NLS shader initialized with libplacebo (aspect ratio warping)");
     }
 
     const char* algo_name = "BT.2390";
