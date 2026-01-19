@@ -5,6 +5,7 @@
 #include <cairo/cairo.h>
 #include <pango/pangocairo.h>
 #include <vulkan/vulkan.h>
+#include <libplacebo/gpu.h>
 #include <memory>
 #include <vector>
 
@@ -87,8 +88,8 @@ public:
     OSDCompositor();
     ~OSDCompositor();
 
-    // Initialize compositor with Vulkan
-    Result initialize(VkDevice device, VkPhysicalDevice physical_device);
+    // Initialize compositor with Vulkan and libplacebo GPU
+    Result initialize(VkDevice device, VkPhysicalDevice physical_device, pl_gpu gpu = nullptr);
 
     // Shutdown
     void shutdown();
@@ -102,10 +103,24 @@ private:
     VkDevice m_device = VK_NULL_HANDLE;
     VkPhysicalDevice m_physical_device = VK_NULL_HANDLE;
 
-    // Vulkan resources for compositing
+    // libplacebo GPU for simpler compositing
+    pl_gpu m_gpu = nullptr;
+
+    // libplacebo textures
+    pl_tex m_osd_tex = nullptr;
+    pl_tex m_video_tex = nullptr;
+    pl_tex m_output_tex = nullptr;
+
+    // Vulkan resources for compositing (legacy)
     VkImage m_osd_image = VK_NULL_HANDLE;
     VkDeviceMemory m_osd_memory = VK_NULL_HANDLE;
     VkImageView m_osd_view = VK_NULL_HANDLE;
+
+    // Current dimensions
+    uint32_t m_video_width = 0;
+    uint32_t m_video_height = 0;
+    uint32_t m_osd_width = 0;
+    uint32_t m_osd_height = 0;
 
     bool m_initialized = false;
 };

@@ -139,10 +139,11 @@ Result ProcessingPipeline::initializeProcessors() {
         } else {
             LOG_INFO("Processing", "OSD renderer initialized");
 
-            // Initialize OSD compositor
+            // Initialize OSD compositor (with libplacebo GPU)
             m_osd_compositor = std::make_unique<osd::OSDCompositor>();
             result = m_osd_compositor->initialize(m_vulkan_context->getDevice(),
-                                                 m_vulkan_context->getPhysicalDevice());
+                                                 m_vulkan_context->getPhysicalDevice(),
+                                                 m_tone_mapper->getGPU());
             if (result != Result::SUCCESS) {
                 LOG_WARN("Processing", "Failed to initialize OSD compositor");
                 m_osd_renderer.reset();

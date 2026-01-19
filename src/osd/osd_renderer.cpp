@@ -510,18 +510,20 @@ OSDCompositor::~OSDCompositor() {
     shutdown();
 }
 
-Result OSDCompositor::initialize(VkDevice device, VkPhysicalDevice physical_device) {
+Result OSDCompositor::initialize(VkDevice device, VkPhysicalDevice physical_device, pl_gpu gpu) {
     if (m_initialized) {
         shutdown();
     }
 
     m_device = device;
     m_physical_device = physical_device;
+    m_gpu = gpu;
 
-    // TODO: Create Vulkan resources for compositing
-    // - Descriptor set layout
-    // - Pipeline for alpha blending
-    // - Sampler for OSD texture
+    if (m_gpu) {
+        LOG_INFO("OSD", "OSD Compositor initialized with libplacebo");
+    } else {
+        LOG_WARN("OSD", "OSD Compositor initialized without libplacebo (software fallback)");
+    }
 
     m_initialized = true;
     return Result::SUCCESS;
@@ -530,7 +532,23 @@ Result OSDCompositor::initialize(VkDevice device, VkPhysicalDevice physical_devi
 void OSDCompositor::shutdown() {
     if (!m_initialized) return;
 
-    // Cleanup Vulkan resources
+    // Cleanup libplacebo textures
+    if (m_gpu) {
+        if (m_osd_tex) {
+            pl_tex_destroy(m_gpu, &m_osd_tex);
+            m_osd_tex = nullptr;
+        }
+        if (m_video_tex) {
+            pl_tex_destroy(m_gpu, &m_video_tex);
+            m_video_tex = nullptr;
+        }
+        if (m_output_tex) {
+            pl_tex_destroy(m_gpu, &m_output_tex);
+            m_output_tex = nullptr;
+        }
+    }
+
+    // Cleanup legacy Vulkan resources
     if (m_osd_view != VK_NULL_HANDLE) {
         vkDestroyImageView(m_device, m_osd_view, nullptr);
         m_osd_view = VK_NULL_HANDLE;
@@ -556,15 +574,56 @@ Result OSDCompositor::composite(const VideoFrame& video, const uint8_t* osd_data
         return Result::ERROR_NOT_INITIALIZED;
     }
 
-    // TODO: Implement Vulkan-based compositing
-    // 1. Upload OSD data to GPU texture
-    // 2. Create compute shader or graphics pipeline for alpha blending
-    // 3. Composite OSD over video with proper positioning and scaling
-    // 4. Handle OSD position (config.position)
-    // 5. Apply opacity (config.opacity)
+    // Allocate output frame
+    size_t output_size = video.width * video.height * 3;  // RGB 8-bit
+    output.data = new uint8_t[output_size];
+    output.size = output_size;
+    output.width = video.width;
+    output.height = video.height;
+    output.format = video.format;
+    output.pts = video.pts;
+    output.hdr_metadata = video.hdr_metadata;
 
-    // For now, just copy video to output (no OSD)
-    output = video;
+    if (m_gpu) {
+        // Use libplacebo for GPU-based compositing
+        // TODO: Implement GPU compositing with pl_tex and custom shader
+        // For now, fall back to CPU compositing
+        LOG_DEBUG("OSD", "GPU compositing not fully implemented, using CPU fallback");
+    }
+
+    // CPU-based alpha blending fallback
+    // Copy video as base
+    std::memcpy(output.data, video.data, output_size);
+
+    // Blend OSD over video with alpha channel
+    const uint8_t* osd_rgba = osd_data;
+    uint8_t* out_rgb = output.data;
+
+    for (uint32_t y = 0; y < osd_height && y < video.height; y++) {
+        for (uint32_t x = 0; x < osd_width && x < video.width; x++) {
+            size_t osd_idx = (y * osd_width + x) * 4;  // RGBA
+            size_t out_idx = (y * video.width + x) * 3;  // RGB
+
+            uint8_t osd_r = osd_rgba[osd_idx + 0];
+            uint8_t osd_g = osd_rgba[osd_idx + 1];
+            uint8_t osd_b = osd_rgba[osd_idx + 2];
+            uint8_t osd_a = osd_rgba[osd_idx + 3];
+
+            // Apply global opacity
+            float alpha = (osd_a / 255.0f) * config.opacity;
+
+            if (alpha > 0.01f) {  // Skip fully transparent pixels
+                uint8_t bg_r = out_rgb[out_idx + 0];
+                uint8_t bg_g = out_rgb[out_idx + 1];
+                uint8_t bg_b = out_rgb[out_idx + 2];
+
+                // Alpha blend: dst = src * alpha + dst * (1 - alpha)
+                out_rgb[out_idx + 0] = (uint8_t)(osd_r * alpha + bg_r * (1.0f - alpha));
+                out_rgb[out_idx + 1] = (uint8_t)(osd_g * alpha + bg_g * (1.0f - alpha));
+                out_rgb[out_idx + 2] = (uint8_t)(osd_b * alpha + bg_b * (1.0f - alpha));
+            }
+        }
+    }
 
     return Result::SUCCESS;
 }
