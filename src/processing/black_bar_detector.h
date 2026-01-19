@@ -27,6 +27,14 @@ public:
     // Analyze frame for black bars
     void analyzeFrame(const VideoFrame& frame, const BlackBarConfig& config);
 
+    // Bootstrap detection using FFmpeg cropdetect
+    Result bootstrapWithFFmpeg(const std::string& video_source,
+                              uint32_t frame_width, uint32_t frame_height,
+                              const BlackBarConfig& config);
+
+    // Check if bootstrap is complete
+    bool isBootstrapComplete() const { return m_bootstrap_complete; }
+
     // Get current crop region with confidence
     CropRegion getCropRegion() const;
 
@@ -42,6 +50,7 @@ public:
         uint64_t bars_detected = 0;
         float current_confidence = 0.0f;
         CropRegion current_crop;
+        bool bootstrap_complete = false;
     };
     Stats getStats() const;
 
@@ -64,6 +73,13 @@ private:
     // Smooth crop transitions
     CropRegion smoothCrop(const CropRegion& target, float smoothing);
 
+    // Parse FFmpeg cropdetect output
+    bool parseFFmpegCropOutput(const std::string& output, uint32_t frame_width,
+                              uint32_t frame_height, CropRegion& result);
+
+    // Update stable crop from FFmpeg results
+    void seedHistoryWithBootstrap(const CropRegion& bootstrap_crop);
+
     // Detection history for temporal stability
     std::deque<CropRegion> m_history;
     size_t m_max_history = 30;
@@ -71,6 +87,11 @@ private:
     // Current crop
     CropRegion m_current_crop;
     CropRegion m_stable_crop;
+    CropRegion m_bootstrap_crop;  // Results from FFmpeg bootstrap
+
+    // Bootstrap state
+    bool m_bootstrap_complete = false;
+    uint64_t m_bootstrap_delay_frames = 0;
 
     // Statistics
     mutable Stats m_stats;

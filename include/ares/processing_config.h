@@ -82,6 +82,11 @@ struct NLSConfig {
 struct BlackBarConfig {
     bool enabled = true;
 
+    // FFmpeg bootstrap (high-accuracy initial detection)
+    bool use_ffmpeg_bootstrap = true;   // Use FFmpeg cropdetect for initial detection
+    float bootstrap_delay = 4.0f;       // Seconds to wait before bootstrap (skip dark openings)
+    float bootstrap_duration = 2.0f;    // Seconds to run FFmpeg detection
+
     // Detection parameters
     int threshold = 16;                 // Pixel brightness threshold (0-255)
     float min_content_height = 0.5f;    // Minimum content height ratio (0.5 = 50%)
