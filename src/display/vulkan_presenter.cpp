@@ -2,8 +2,10 @@
 #include "core/logger.h"
 #include <chrono>
 #include <cstring>
+#include <cerrno>
 #include <unistd.h>  // For close()
 #include <drm/drm.h>
+#include <drm/drm_fourcc.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
@@ -106,9 +108,14 @@ Result VulkanPresenter::createVulkanImages() {
         buffer.width = width;
         buffer.height = height;
 
-        // Create Vulkan image
+        // Create Vulkan image with external memory support for DMA-BUF
+        VkExternalMemoryImageCreateInfo external_info = {};
+        external_info.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
+        external_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+
         VkImageCreateInfo image_info = {};
         image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        image_info.pNext = &external_info;
         image_info.imageType = VK_IMAGE_TYPE_2D;
         image_info.format = VK_FORMAT_B8G8R8A8_UNORM;  // Standard BGRA format
         image_info.extent.width = width;
@@ -117,7 +124,7 @@ Result VulkanPresenter::createVulkanImages() {
         image_info.mipLevels = 1;
         image_info.arrayLayers = 1;
         image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-        image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+        image_info.tiling = VK_IMAGE_TILING_LINEAR;  // LINEAR for DMA-BUF export
         image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -127,12 +134,17 @@ Result VulkanPresenter::createVulkanImages() {
             return Result::ERROR_GENERIC;
         }
 
-        // Allocate memory
+        // Allocate memory with external memory support
         VkMemoryRequirements mem_reqs;
         vkGetImageMemoryRequirements(m_device, buffer.image, &mem_reqs);
 
+        VkExportMemoryAllocateInfo export_info = {};
+        export_info.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO;
+        export_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+
         VkMemoryAllocateInfo alloc_info = {};
         alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.pNext = &export_info;
         alloc_info.allocationSize = mem_reqs.size;
         alloc_info.memoryTypeIndex = m_vk_context->findMemoryType(
             mem_reqs.memoryTypeBits,
@@ -220,21 +232,24 @@ Result VulkanPresenter::createDrmFramebuffers() {
         uint32_t offsets[4] = {0};
 
         // Import the DMA-BUF fd as a DRM handle (GEM handle)
-        struct drm_prime_handle prime_handle = {};
-        prime_handle.fd = dma_buf_fd;
-        prime_handle.flags = 0;
+        uint32_t gem_handle = 0;
+        int ret = drmPrimeFDToHandle(drm_fd, dma_buf_fd, &gem_handle);
 
-        // Note: In a full implementation, we would use drmPrimeFDToHandle
-        // For now, create a simplified framebuffer
-        handles[0] = 0;  // Would be the GEM handle from import
+        // Close the DMA-BUF FD after import
+        close(dma_buf_fd);
+
+        if (ret != 0) {
+            LOG_ERROR("Display", "Failed to import DMA-BUF FD to GEM handle: %s", strerror(errno));
+            buffer.fb_id = 0;
+            continue;
+        }
+
+        // Set up framebuffer parameters
+        handles[0] = gem_handle;
         pitches[0] = static_cast<uint32_t>(layout.rowPitch);
         offsets[0] = 0;
 
-        // Close the DMA-BUF FD as it's been imported
-        close(dma_buf_fd);
-
         // Create DRM framebuffer
-        // Note: This would use drmModeAddFB2WithModifiers in production
         buffer.fb_id = createDrmFb(buffer.width, buffer.height, handles, pitches, offsets);
 
         if (buffer.fb_id == 0) {
@@ -567,18 +582,17 @@ uint32_t VulkanPresenter::createDrmFb(uint32_t width, uint32_t height,
         return 0;
     }
 
-    // For now, return 0 to indicate placeholder
-    // In a full implementation, this would call:
-    // uint32_t fb_id = 0;
-    // if (drmModeAddFB2(drm_fd, width, height, DRM_FORMAT_XRGB8888,
-    //                   handles, pitches, offsets, &fb_id, 0) != 0) {
-    //     LOG_ERROR("Display", "drmModeAddFB2 failed: %s", strerror(errno));
-    //     return 0;
-    // }
-    // return fb_id;
+    // Create framebuffer using drmModeAddFB2
+    // XRGB8888 format (32-bit, no alpha) for display
+    uint32_t fb_id = 0;
+    if (drmModeAddFB2(drm_fd, width, height, DRM_FORMAT_XRGB8888,
+                      handles, pitches, offsets, &fb_id, 0) != 0) {
+        LOG_ERROR("Display", "drmModeAddFB2 failed: %s", strerror(errno));
+        return 0;
+    }
 
-    LOG_DEBUG("Display", "createDrmFb stub: %ux%u", width, height);
-    return 0;
+    LOG_DEBUG("Display", "Created DRM framebuffer %u (%ux%u)", fb_id, width, height);
+    return fb_id;
 }
 
 void VulkanPresenter::shutdown() {
