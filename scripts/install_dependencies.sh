@@ -70,9 +70,7 @@ if [ "$DISTRO" = "ubuntu" ] || [ "$DISTRO" = "debian" ]; then
         vulkan-tools \
         vulkan-validationlayers \
         libvulkan-dev \
-        mesa-vulkan-drivers \
-        libglslang-dev \
-        glslang-tools
+        mesa-vulkan-drivers
 
     # Video processing libraries
     echo "Installing video processing libraries..."
