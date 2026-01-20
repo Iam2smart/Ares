@@ -1,0 +1,128 @@
+{
+  "version": "1.0",
+  "capture": {
+    "device_index": 0,
+    "input_connection": "HDMI",
+    "pixel_format": "10BitYUV",
+    "buffer_size": 3
+  },
+  "processing": {
+    "tone_mapping": {
+      "algorithm": "bt2390",
+      "target_nits": 100,
+      "source_nits": 1000,
+      "use_metadata": true,
+      "contrast": 1.0,
+      "saturation": 1.0,
+      "gamma": 1.0
+    },
+    "color": {
+      "input_gamut": "bt2020",
+      "output_gamut": "bt2020",
+      "output_transfer": "gamma22",
+      "soft_clip": true,
+      "desaturation": 0.0
+    },
+    "nls": {
+      "enabled": false,
+      "strength": 0.5,
+      "adapt_speed": 0.3
+    },
+    "black_bars": {
+      "enabled": true,
+      "use_ffmpeg_bootstrap": false,
+      "threshold": 16,
+      "min_content_height": 0.5,
+      "detection_frames": 10,
+      "confidence_threshold": 0.8,
+      "symmetric_only": true,
+      "auto_crop": true,
+      "crop_smoothing": 0.3
+    },
+    "chroma_upscaling": {
+      "enabled": true,
+      "algorithm": "ewa_lanczos",
+      "antiring": 0.0
+    },
+    "image_upscaling": {
+      "luma_algorithm": "nnedi3_64",
+      "chroma_algorithm": "ewa_lanczos",
+      "downscaling_algorithm": "hermite",
+      "antiring": 0.0,
+      "use_ar_filter": true
+    },
+    "debanding": {
+      "enabled": false,
+      "iterations": 1,
+      "threshold": 4.0,
+      "radius": 16,
+      "grain": 6.0
+    },
+    "dithering": {
+      "enabled": true,
+      "method": "blue_noise",
+      "strength": 1.0,
+      "temporal": true
+    }
+  },
+  "display": {
+    "connector": "HDMI-A-1",
+    "card": "/dev/dri/card0",
+    "auto_mode": true,
+    "vsync": true,
+    "adaptive_vsync": false,
+    "hdr_output": false,
+    "hdr_eotf": 0,
+    "output_color_space": "bt2020",
+    "buffer_count": 3,
+    "low_latency": false,
+    "edid_override": null,
+    "preferred_modes": [
+      {"width": 3840, "height": 2160, "refresh": 24},
+      {"width": 3840, "height": 2160, "refresh": 60},
+      {"width": 1920, "height": 1080, "refresh": 60}
+    ],
+    "refresh_rate_matching": true
+  },
+  "sync": {
+    "target_latency_ms": 16,
+    "jitter_compensation": true,
+    "vsync_mode": "adaptive",
+    "scheduling_algorithm": "frame_pacing"
+  },
+  "osd": {
+    "enabled": true,
+    "position": "bottom_right",
+    "opacity": 0.8,
+    "show_stats": false,
+    "font_size": 18,
+    "font_family": "Inter"
+  },
+  "input": {
+    "device": "/dev/input/by-id/usb-flirc.tv_flirc-event-kbd",
+    "mappings": {
+      "KEY_UP": "menu_up",
+      "KEY_DOWN": "menu_down",
+      "KEY_LEFT": "menu_left",
+      "KEY_RIGHT": "menu_right",
+      "KEY_ENTER": "menu_select",
+      "KEY_ESC": "menu_back",
+      "KEY_INFO": "toggle_stats",
+      "KEY_MENU": "toggle_menu",
+      "KEY_VOLUMEUP": "volume_up",
+      "KEY_VOLUMEDOWN": "volume_down",
+      "KEY_MUTE": "volume_mute"
+    }
+  },
+  "receiver": {
+    "enabled": true,
+    "protocol": "eiscp",
+    "host": "192.168.1.100",
+    "port": 60128
+  },
+  "logging": {
+    "level": "INFO",
+    "output": "syslog",
+    "file_path": "/var/log/ares/ares.log"
+  }
+}
