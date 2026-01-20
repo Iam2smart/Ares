@@ -441,7 +441,7 @@ void OSDRenderer::drawVolumeOverlay(int level, bool muted, float opacity) {
         snprintf(volume_text, sizeof(volume_text), "MUTED");
         setColor(0xFF4040FF);  // Red
     } else {
-        snprintf(volume_text, sizeof(volume_text), "%d", level);
+        snprintf(volume_text, sizeof(volume_text), "%d%%", level);
         setColor(0xFFFFFFFF);  // White
     }
 

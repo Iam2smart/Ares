@@ -27,10 +27,10 @@ public:
 
     // Volume information
     struct VolumeInfo {
-        int level = 0;           // Volume level (0-100 or receiver-specific range)
+        int level = 0;           // Volume level scaled to 0-100 percentage
         int raw_level = 0;       // Raw receiver value (e.g., 0-80 for Integra)
         bool muted = false;
-        int max_volume = 80;     // Maximum volume (receiver-specific)
+        int max_volume = 80;     // Maximum raw volume (used for 0-100 scaling)
         bool changed = false;    // Flag for recent change
         uint64_t last_change_ms = 0;  // Timestamp of last change
     };
@@ -66,6 +66,10 @@ public:
     // Enable/disable automatic volume monitoring
     void setMonitoringEnabled(bool enabled);
     bool isMonitoringEnabled() const { return m_monitoring_enabled; }
+
+    // Set maximum volume for 0-100 scaling
+    void setMaxVolume(int max_volume);
+    int getMaxVolume() const { return m_volume_info.max_volume; }
 
 private:
     // EISCP protocol implementation

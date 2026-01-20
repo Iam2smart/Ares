@@ -81,7 +81,8 @@ enum class Result {
     ERROR_NOT_INITIALIZED = -4,
     ERROR_DEVICE_LOST = -5,
     ERROR_OUT_OF_MEMORY = -6,
-    ERROR_TIMEOUT = -7
+    ERROR_TIMEOUT = -7,
+    ERROR_WRITE_FAILED = -8
 };
 
 } // namespace ares

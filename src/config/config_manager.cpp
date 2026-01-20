@@ -58,7 +58,7 @@ AresConfig ConfigManager::getDefaultConfig() {
     config.osd.opacity = 0.9f;
     config.osd.font_family = "Sans";
     config.osd.font_size = 24;
-    config.osd.timeout_seconds = 10.0f;
+    config.osd.timeout_ms = 10000;
 
     // Receiver defaults
     config.receiver.enabled = false;
@@ -159,7 +159,7 @@ Result ConfigManager::loadFromIni(const std::string& config_path, AresConfig& co
     config.osd.opacity = getFloatValue(ini, "osd", "opacity", 0.9f);
     config.osd.font_family = getValue(ini, "osd", "font_family", "Sans");
     config.osd.font_size = getIntValue(ini, "osd", "font_size", 24);
-    config.osd.timeout_seconds = getFloatValue(ini, "osd", "timeout", 10.0f);
+    config.osd.timeout_ms = static_cast<int>(getFloatValue(ini, "osd", "timeout", 10.0f) * 1000);
 
     // Load receiver config
     config.receiver.enabled = getBoolValue(ini, "receiver", "enabled", false);
@@ -268,7 +268,7 @@ Result ConfigManager::saveToIni(const std::string& config_path, const AresConfig
     file << "opacity = " << config.osd.opacity << "\n";
     file << "font_family = " << config.osd.font_family << "\n";
     file << "font_size = " << config.osd.font_size << "\n";
-    file << "timeout = " << config.osd.timeout_seconds << "\n\n";
+    file << "timeout = " << (config.osd.timeout_ms / 1000.0f) << "\n\n";
 
     // Receiver section
     file << "[receiver]\n";

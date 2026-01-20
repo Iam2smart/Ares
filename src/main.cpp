@@ -188,7 +188,7 @@ int main(int argc, char* argv[]) {
     // Initialize menu system
     LOG_INFO("Main", "Initializing menu system...");
     osd::MenuSystem menu;
-    result = menu.initialize(config.osd, &osd_renderer, &ir_remote);
+    result = menu.initialize(&osd_renderer, &ir_remote, config.osd);
     if (result != Result::SUCCESS) {
         LOG_WARN("Main", "Failed to initialize menu system");
     }
@@ -200,6 +200,7 @@ int main(int argc, char* argv[]) {
         LOG_INFO("Main", "Initializing receiver control...");
         result = receiver.initialize(config.receiver.ip_address, config.receiver.port);
         if (result == Result::SUCCESS) {
+            receiver.setMaxVolume(config.receiver.max_volume);
             receiver.setMonitoringEnabled(true);
             receiver_enabled = true;
             LOG_INFO("Main", "Receiver control initialized successfully");

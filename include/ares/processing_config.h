@@ -66,6 +66,10 @@ struct NLSConfig {
                                         // Higher = more stretch at edges, less in center
                                         // 1.0 = linear, >1.0 = protect center more
 
+    // Power curve parameters for stretch distribution
+    float horizontal_power = 2.0f;      // Power curve for horizontal stretch (0.1-6.0)
+    float vertical_power = 2.0f;        // Power curve for vertical stretch (0.1-6.0)
+
     // Quality
     enum class InterpolationQuality {
         BILINEAR,       // Fast, lower quality

@@ -316,6 +316,16 @@ ReceiverControl::VolumeInfo ReceiverControl::getVolumeInfo() const {
     return m_volume_info;
 }
 
+void ReceiverControl::setMaxVolume(int max_volume) {
+    std::lock_guard<std::mutex> lock(m_volume_mutex);
+    m_volume_info.max_volume = max_volume;
+    // Recalculate level based on new max
+    if (m_volume_info.raw_level > 0) {
+        m_volume_info.level = (m_volume_info.raw_level * 100) / max_volume;
+    }
+    LOG_INFO("Receiver", "Max volume set to %d (for 0-100 scaling)", max_volume);
+}
+
 void ReceiverControl::setMonitoringEnabled(bool enabled) {
     if (enabled == m_monitoring_enabled) {
         return;
