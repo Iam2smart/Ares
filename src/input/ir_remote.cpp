@@ -24,6 +24,10 @@ IRRemote::IRRemote() {
     m_button_map[KEY_ESC] = RemoteButton::BACK;
     m_button_map[KEY_MENU] = RemoteButton::MENU;
 
+    // Alternative menu keys (for keyboards without KEY_MENU)
+    m_button_map[KEY_F12] = RemoteButton::MENU;     // F12 to open OSD
+    m_button_map[KEY_M] = RemoteButton::MENU;       // 'M' key to open OSD
+
     // Numbers
     m_button_map[KEY_0] = RemoteButton::NUM_0;
     m_button_map[KEY_1] = RemoteButton::NUM_1;
