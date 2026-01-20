@@ -86,6 +86,9 @@ install(TARGETS ares DESTINATION bin)
 install(DIRECTORY config/ DESTINATION /etc/ares)
 install(FILES systemd/ares.service DESTINATION /etc/systemd/system)
 
+# Tools (test utilities)
+add_subdirectory(tools)
+
 # Tests
 if(ARES_BUILD_TESTS)
     enable_testing()
