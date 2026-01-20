@@ -4,6 +4,7 @@ add_library(ares_processing STATIC
     black_bar_detector.cpp
     nls_shader.cpp
     processing_pipeline.cpp
+    scene_analyzer.cpp
 )
 
 target_include_directories(ares_processing PUBLIC
