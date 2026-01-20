@@ -76,7 +76,6 @@ if [ "$DISTRO" = "ubuntu" ] || [ "$DISTRO" = "debian" ]; then
     echo "Installing video processing libraries..."
     apt install -y \
         libplacebo-dev \
-        libplacebo208 \
         ffmpeg \
         libavcodec-dev \
         libavformat-dev \
