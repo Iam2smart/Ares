@@ -1,4 +1,5 @@
 #include "placebo_renderer.h"
+#include "scene_analyzer.h"
 #include "core/logger.h"
 
 #include <libplacebo/colorspace.h>
@@ -33,6 +34,7 @@ static void pl_log_callback(void* priv, pl_log_level level, const char* msg) {
 PlaceboRenderer::PlaceboRenderer() {
     LOG_INFO("Processing", "PlaceboRenderer created");
     m_last_frame_time = std::chrono::steady_clock::now();
+    m_scene_analyzer = std::make_unique<SceneAnalyzer>();
 }
 
 PlaceboRenderer::~PlaceboRenderer() {
@@ -243,6 +245,20 @@ pl_tone_map_function PlaceboRenderer::getToneMappingFunction(ToneMappingAlgorith
 Result PlaceboRenderer::render(const ProcessingConfig& config) {
     auto start_time = std::chrono::high_resolution_clock::now();
 
+    // Get dynamic tone mapping parameters if enabled
+    float source_nits = config.tone_mapping.source_nits;
+    float knee_point = config.tone_mapping.params.knee_point;
+
+    if (config.tone_mapping.dynamic.enabled && m_scene_analyzer) {
+        SceneAnalyzer::DynamicParams dynamic_params = m_scene_analyzer->getDynamicParams();
+        source_nits = dynamic_params.source_nits;
+        knee_point = dynamic_params.knee_point;
+
+        LOG_DEBUG("Processing", "Dynamic tone mapping: source=%.1f nits (avg=%.1f, peak=%.1f), knee=%.3f",
+                  source_nits, dynamic_params.avg_brightness,
+                  dynamic_params.peak_brightness, knee_point);
+    }
+
     // Setup source image
     struct pl_frame source = {0};
     pl_frame_from_swapchain(&source, &(struct pl_swapchain_frame) {
@@ -255,7 +271,7 @@ Result PlaceboRenderer::render(const ProcessingConfig& config) {
     source.color = (struct pl_color_space) {
         .primaries = PL_COLOR_PRIM_BT_2020,
         .transfer = PL_COLOR_TRC_PQ,  // HDR10 uses PQ
-        .hdr.max_luma = config.tone_mapping.source_nits,
+        .hdr.max_luma = source_nits,  // Use dynamic source_nits
         .hdr.min_luma = 0.0f,
     };
 
@@ -281,7 +297,7 @@ Result PlaceboRenderer::render(const ProcessingConfig& config) {
     // Configure tone mapping
     render_params.color_map_params = &(struct pl_color_map_params) {
         .tone_mapping_function = getToneMappingFunction(config.tone_mapping.algorithm),
-        .tone_mapping_param = config.tone_mapping.params.knee_point,
+        .tone_mapping_param = knee_point,  // Use dynamic knee_point
         .tone_mapping_mode = PL_TONE_MAP_AUTO,
         .gamut_mapping = PL_GAMUT_CLIP,
         .gamut_clipping = config.color.soft_clip,
@@ -454,13 +470,26 @@ Result PlaceboRenderer::processFrame(const VideoFrame& input, VideoFrame& output
         return Result::ERROR_NOT_INITIALIZED;
     }
 
+    // Initialize scene analyzer if dynamic tone mapping is enabled
+    if (config.tone_mapping.dynamic.enabled && m_scene_analyzer) {
+        static bool analyzer_initialized = false;
+        if (!analyzer_initialized) {
+            m_scene_analyzer->initialize(config.tone_mapping.dynamic);
+            analyzer_initialized = true;
+            LOG_INFO("Processing", "Dynamic tone mapping enabled");
+        }
+
+        // Analyze frame for brightness statistics
+        m_scene_analyzer->analyzeFrame(input, input.hdr_metadata);
+    }
+
     // Upload frame
     Result result = uploadFrame(input);
     if (result != Result::SUCCESS) {
         return result;
     }
 
-    // Render with tone mapping
+    // Render with tone mapping (uses dynamic parameters if enabled)
     result = render(config);
     if (result != Result::SUCCESS) {
         return result;

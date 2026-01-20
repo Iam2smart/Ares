@@ -3,6 +3,7 @@
 #include <ares/types.h>
 #include <ares/processing_config.h>
 #include "vulkan_context.h"
+#include "scene_analyzer.h"
 
 #include <libplacebo/vulkan.h>
 #include <libplacebo/renderer.h>
@@ -80,6 +81,9 @@ private:
     // Statistics
     mutable Stats m_stats = {};
     Timestamp m_last_frame_time;
+
+    // Scene analyzer for dynamic tone mapping
+    std::unique_ptr<SceneAnalyzer> m_scene_analyzer;
 
     // State
     bool m_initialized = false;

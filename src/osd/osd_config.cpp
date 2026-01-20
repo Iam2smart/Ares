@@ -403,6 +403,39 @@ OSDMenuStructure createDefaultOSDMenu() {
     refresh_matched.tooltip = "Display refresh rate matches source (eliminates judder)";
     info_tab.items.push_back(refresh_matched);
 
+    // GPU Performance Metrics
+    MenuItem gpu_frame_time;
+    gpu_frame_time.id = "gpu_frame_time";
+    gpu_frame_time.label = "GPU Frame Time";
+    gpu_frame_time.type = MenuItemType::INFO;
+    gpu_frame_time.info_text = "-- ms";
+    gpu_frame_time.tooltip = "GPU processing time per frame (target: 10-16ms @ 60Hz)";
+    info_tab.items.push_back(gpu_frame_time);
+
+    MenuItem gpu_frame_rate;
+    gpu_frame_rate.id = "gpu_frame_rate";
+    gpu_frame_rate.label = "GPU Frame Rate";
+    gpu_frame_rate.type = MenuItemType::INFO;
+    gpu_frame_rate.info_text = "-- FPS";
+    gpu_frame_rate.tooltip = "Maximum FPS based on GPU frame time";
+    info_tab.items.push_back(gpu_frame_rate);
+
+    MenuItem gpu_avg_frame_time;
+    gpu_avg_frame_time.id = "gpu_avg_frame_time";
+    gpu_avg_frame_time.label = "GPU Avg Frame Time";
+    gpu_avg_frame_time.type = MenuItemType::INFO;
+    gpu_avg_frame_time.info_text = "-- ms";
+    gpu_avg_frame_time.tooltip = "Average GPU processing time";
+    info_tab.items.push_back(gpu_avg_frame_time);
+
+    MenuItem performance_status;
+    performance_status.id = "performance_status";
+    performance_status.label = "Performance";
+    performance_status.type = MenuItemType::INFO;
+    performance_status.info_text = "Unknown";
+    performance_status.tooltip = "Real-time performance status (60 FPS = 16.67ms budget)";
+    info_tab.items.push_back(performance_status);
+
     menu.tabs.push_back(info_tab);
 
     return menu;

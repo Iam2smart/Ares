@@ -64,6 +64,10 @@ public:
     OSDMenuStructure& getMenuStructure() { return m_menu; }
     const OSDMenuStructure& getMenuStructure() const { return m_menu; }
 
+    // Update dynamic info items (GPU stats, input info, etc.)
+    void updateGPUPerformanceInfo(double frame_time_ms, double avg_frame_time_ms);
+    void updateInfoItem(const std::string& item_id, const std::string& value);
+
     // Statistics
     struct Stats {
         uint64_t inputs_processed = 0;

@@ -124,6 +124,35 @@ struct ToneMappingConfig {
     float source_nits = 1000.0f;        // Source content peak brightness
     bool use_metadata = true;           // Use HDR metadata if available
 
+    // Per-Scene Dynamic Tone Mapping (like madVR Envy)
+    struct DynamicToneMappingConfig {
+        bool enabled = false;           // Enable per-scene adaptation
+
+        // Analysis window
+        int analysis_frames = 60;       // Frames to analyze (1-300, ~1-5 seconds at 60fps)
+        float scene_threshold = 0.3f;   // Scene change detection threshold (0.1-1.0)
+
+        // Adaptation behavior
+        float adaptation_speed = 0.5f;  // How fast to adapt (0.1=slow, 1.0=instant)
+        bool smooth_transitions = true; // Smooth parameter changes between scenes
+
+        // Dynamic parameter ranges (min/max bounds for safety)
+        struct {
+            float min_source_nits = 200.0f;   // Don't go below this
+            float max_source_nits = 4000.0f;  // Don't go above this
+            float min_knee_point = 0.5f;      // Minimum knee point
+            float max_knee_point = 0.9f;      // Maximum knee point
+        } bounds;
+
+        // Scene brightness analysis
+        bool use_peak_brightness = true;     // Use peak brightness for adaptation
+        bool use_average_brightness = true;  // Use average brightness for adaptation
+        float peak_percentile = 99.5f;       // Percentile for peak calculation (95-99.9)
+
+        // Prevent flickering in dark/bright scenes
+        float min_change_threshold = 5.0f;   // Minimum nits change to trigger adaptation
+    } dynamic;
+
     // Algorithm-specific parameters
     struct {
         // BT.2390 parameters

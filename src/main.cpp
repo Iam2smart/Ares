@@ -255,6 +255,13 @@ int main(int argc, char* argv[]) {
         // Update menu system (handle input, update OSD)
         menu.update();
 
+        // Update GPU performance info in menu (every frame for real-time display)
+        auto pipeline_stats = pipeline.getStats();
+        menu.updateGPUPerformanceInfo(
+            pipeline_stats.tone_mapping_stats.last_frame_time_ms,
+            pipeline_stats.tone_mapping_stats.avg_frame_time_ms
+        );
+
         // Render volume overlay if receiver is active and volume changed recently
         if (receiver_enabled) {
             auto volume_info = receiver.getVolumeInfo();

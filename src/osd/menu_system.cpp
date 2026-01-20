@@ -554,5 +554,52 @@ MenuItem* MenuSystem::getCurrentItem() {
     return &menu->items[m_current_item];
 }
 
+void MenuSystem::updateGPUPerformanceInfo(double frame_time_ms, double avg_frame_time_ms) {
+    // Update GPU frame time
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "%.2f ms", frame_time_ms);
+    updateInfoItem("gpu_frame_time", buffer);
+
+    // Update GPU frame rate (max FPS based on frame time)
+    double max_fps = (frame_time_ms > 0.0) ? (1000.0 / frame_time_ms) : 0.0;
+    snprintf(buffer, sizeof(buffer), "%.1f FPS", max_fps);
+    updateInfoItem("gpu_frame_rate", buffer);
+
+    // Update average frame time
+    snprintf(buffer, sizeof(buffer), "%.2f ms", avg_frame_time_ms);
+    updateInfoItem("gpu_avg_frame_time", buffer);
+
+    // Update performance status
+    const char* status;
+    const double target_60fps = 16.67;  // 60 FPS = 16.67ms per frame
+    const double target_30fps = 33.33;  // 30 FPS = 33.33ms per frame
+
+    if (frame_time_ms <= 16.0) {
+        status = "Excellent (60+ FPS)";
+    } else if (frame_time_ms <= target_60fps) {
+        status = "Good (60 FPS capable)";
+    } else if (frame_time_ms <= 20.0) {
+        status = "Acceptable (50+ FPS)";
+    } else if (frame_time_ms <= target_30fps) {
+        status = "Fair (30+ FPS)";
+    } else {
+        status = "Poor (< 30 FPS)";
+    }
+
+    updateInfoItem("performance_status", status);
+}
+
+void MenuSystem::updateInfoItem(const std::string& item_id, const std::string& value) {
+    // Find and update the info item in the menu structure
+    for (auto& tab : m_menu.tabs) {
+        for (auto& item : tab.items) {
+            if (item.id == item_id && item.type == MenuItemType::INFO) {
+                item.info_text = value;
+                return;
+            }
+        }
+    }
+}
+
 } // namespace osd
 } // namespace ares
