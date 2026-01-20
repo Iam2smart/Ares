@@ -53,7 +53,7 @@ Result MenuSystem::loadMenu(const OSDMenuStructure& menu) {
     m_current_item = 0;
     m_scroll_offset = 0;
 
-    LOG_INFO("OSD", "Loaded menu with {} tabs", m_menu.tabs.size());
+    LOG_INFO("OSD", "Loaded menu with %zu tabs", m_menu.tabs.size());
     return Result::SUCCESS;
 }
 
@@ -153,7 +153,7 @@ void MenuSystem::renderTabs() {
     int menu_x = (m_renderer->getWidth() - menu_width) / 2;
     int menu_y = (m_renderer->getHeight() - calculateMenuHeight()) / 2;
 
-    int tab_width = menu_width / m_menu.tabs.size();
+    int tab_width = menu_width / static_cast<int>(m_menu.tabs.size());
     int tab_y = menu_y;
 
     for (size_t i = 0; i < m_menu.tabs.size(); i++) {
@@ -208,7 +208,7 @@ void MenuSystem::renderMenuItems() {
             item.value = buf;
         } else if (item.type == MenuItemType::ENUM && item.enum_value) {
             int idx = *item.enum_value;
-            if (idx >= 0 && idx < item.enum_options.size()) {
+            if (idx >= 0 && idx < static_cast<int>(item.enum_options.size())) {
                 item.value = item.enum_options[idx];
             }
         }
@@ -254,7 +254,7 @@ void MenuSystem::renderScrollbar() {
     if (!menu) return;
 
     int visible_count = calculateVisibleItems();
-    if (menu->items.size() <= visible_count) return;
+    if (static_cast<int>(menu->items.size()) <= visible_count) return;
 
     int menu_width = calculateMenuWidth();
     int menu_height = calculateMenuHeight();
@@ -317,12 +317,12 @@ void MenuSystem::navigateUp() {
     do {
         m_current_item--;
         if (m_current_item < 0) {
-            m_current_item = menu->items.size() - 1;
+            m_current_item = static_cast<int>(menu->items.size()) - 1;
         }
     } while (!menu->items[m_current_item].visible || !menu->items[m_current_item].enabled);
 
     resetTimeout();
-    LOG_DEBUG("OSD", "Navigate up to item {}", m_current_item);
+    LOG_DEBUG("OSD", "Navigate up to item %d", m_current_item);
 }
 
 void MenuSystem::navigateDown() {
@@ -331,13 +331,13 @@ void MenuSystem::navigateDown() {
 
     do {
         m_current_item++;
-        if (m_current_item >= menu->items.size()) {
+        if (m_current_item >= static_cast<int>(menu->items.size())) {
             m_current_item = 0;
         }
     } while (!menu->items[m_current_item].visible || !menu->items[m_current_item].enabled);
 
     resetTimeout();
-    LOG_DEBUG("OSD", "Navigate down to item {}", m_current_item);
+    LOG_DEBUG("OSD", "Navigate down to item %d", m_current_item);
 }
 
 void MenuSystem::navigateLeft() {
@@ -347,12 +347,12 @@ void MenuSystem::navigateLeft() {
         // Switch to previous tab
         m_current_tab--;
         if (m_current_tab < 0) {
-            m_current_tab = m_menu.tabs.size() - 1;
+            m_current_tab = static_cast<int>(m_menu.tabs.size()) - 1;
         }
         m_current_item = 0;
         m_scroll_offset = 0;
         resetTimeout();
-        LOG_DEBUG("OSD", "Navigate left to tab {}", m_current_tab);
+        LOG_DEBUG("OSD", "Navigate left to tab %d", m_current_tab);
     }
 }
 
@@ -362,18 +362,18 @@ void MenuSystem::navigateRight() {
     } else {
         // Switch to next tab
         m_current_tab++;
-        if (m_current_tab >= m_menu.tabs.size()) {
+        if (m_current_tab >= static_cast<int>(m_menu.tabs.size())) {
             m_current_tab = 0;
         }
         m_current_item = 0;
         m_scroll_offset = 0;
         resetTimeout();
-        LOG_DEBUG("OSD", "Navigate right to tab {}", m_current_tab);
+        LOG_DEBUG("OSD", "Navigate right to tab %d", m_current_tab);
     }
 }
 
 void MenuSystem::navigateTab(int tab_index) {
-    if (tab_index >= 0 && tab_index < m_menu.tabs.size()) {
+    if (tab_index >= 0 && tab_index < static_cast<int>(m_menu.tabs.size())) {
         m_current_tab = tab_index;
         m_current_item = 0;
         m_scroll_offset = 0;
@@ -391,7 +391,7 @@ void MenuSystem::selectCurrent() {
         case MenuItemType::TOGGLE:
             if (item->toggle_value) {
                 *item->toggle_value = !*item->toggle_value;
-                LOG_DEBUG("OSD", "Toggled {} to {}", item->label, *item->toggle_value);
+                LOG_DEBUG("OSD", "Toggled %s to %d", item->label.c_str(), *item->toggle_value);
                 // Trigger value change callback
                 if (item->on_change) {
                     item->on_change();
@@ -401,13 +401,13 @@ void MenuSystem::selectCurrent() {
 
         case MenuItemType::SLIDER:
             m_adjusting_value = !m_adjusting_value;
-            LOG_DEBUG("OSD", "Adjusting value for {}: {}", item->label, m_adjusting_value);
+            LOG_DEBUG("OSD", "Adjusting value for %s: %d", item->label.c_str(), m_adjusting_value);
             break;
 
         case MenuItemType::ENUM:
             if (item->enum_value && !item->enum_options.empty()) {
-                *item->enum_value = (*item->enum_value + 1) % item->enum_options.size();
-                LOG_DEBUG("OSD", "Changed {} to option {}", item->label, *item->enum_value);
+                *item->enum_value = (*item->enum_value + 1) % static_cast<int>(item->enum_options.size());
+                LOG_DEBUG("OSD", "Changed %s to option %d", item->label.c_str(), *item->enum_value);
                 // Trigger value change callback
                 if (item->on_change) {
                     item->on_change();
@@ -418,13 +418,13 @@ void MenuSystem::selectCurrent() {
         case MenuItemType::ACTION:
             if (item->action) {
                 item->action();
-                LOG_DEBUG("OSD", "Executed action: {}", item->label);
+                LOG_DEBUG("OSD", "Executed action: %s", item->label.c_str());
             }
             break;
 
         case MenuItemType::SUBMENU:
             // TODO: Navigate to submenu
-            LOG_DEBUG("OSD", "Enter submenu: {}", item->label);
+            LOG_DEBUG("OSD", "Enter submenu: %s", item->label.c_str());
             break;
 
         default:
@@ -455,14 +455,14 @@ void MenuSystem::adjustValue(float delta) {
         *item->float_value = std::clamp(*item->float_value + step,
                                        item->min_value, item->max_value);
         value_changed = (*item->float_value != old_value);
-        LOG_DEBUG("OSD", "Adjusted {} to {}", item->label, *item->float_value);
+        LOG_DEBUG("OSD", "Adjusted %s to %.2f", item->label.c_str(), *item->float_value);
     } else if (item->type == MenuItemType::INTEGER && item->int_value) {
         int step = std::max(1, (int)(item->step * delta * 10.0f));
         int old_value = *item->int_value;
         *item->int_value = std::clamp(*item->int_value + step,
                                      (int)item->min_value, (int)item->max_value);
         value_changed = (*item->int_value != old_value);
-        LOG_DEBUG("OSD", "Adjusted {} to {}", item->label, *item->int_value);
+        LOG_DEBUG("OSD", "Adjusted %s to %d", item->label.c_str(), *item->int_value);
     }
 
     // Trigger value change callback
@@ -540,7 +540,7 @@ bool MenuSystem::isTimedOut() const {
 }
 
 Menu* MenuSystem::getCurrentMenu() {
-    if (m_current_tab < 0 || m_current_tab >= m_menu.tabs.size()) {
+    if (m_current_tab < 0 || m_current_tab >= static_cast<int>(m_menu.tabs.size())) {
         return nullptr;
     }
     return &m_menu.tabs[m_current_tab];
@@ -548,7 +548,7 @@ Menu* MenuSystem::getCurrentMenu() {
 
 MenuItem* MenuSystem::getCurrentItem() {
     Menu* menu = getCurrentMenu();
-    if (!menu || m_current_item < 0 || m_current_item >= menu->items.size()) {
+    if (!menu || m_current_item < 0 || m_current_item >= static_cast<int>(menu->items.size())) {
         return nullptr;
     }
     return &menu->items[m_current_item];
