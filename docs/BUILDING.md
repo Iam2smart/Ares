@@ -44,7 +44,7 @@ sudo apt install nvidia-driver-550 nvidia-utils-550 nvidia-dkms-550 \
     vulkan-tools libvulkan-dev mesa-vulkan-drivers
 
 # Video processing
-sudo apt install libplacebo-dev libplacebo208 ffmpeg \
+sudo apt install libplacebo-dev ffmpeg \
     libavcodec-dev libavformat-dev libavutil-dev \
     libswscale-dev libdrm-dev libgbm-dev
 
