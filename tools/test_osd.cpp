@@ -39,7 +39,7 @@ VideoFrame generateTestPattern(uint32_t width, uint32_t height, uint32_t frame_n
     frame.format = PixelFormat::RGB_8BIT;
     frame.size = width * height * 3;
     frame.data = new uint8_t[frame.size];
-    frame.pts = frame_number * 16667; // ~60 FPS
+    frame.pts = Timestamp(std::chrono::nanoseconds(frame_number * 16667000)); // ~60 FPS
 
     // Generate color bars test pattern
     const int num_bars = 8;
@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
     printf("=================================\n\n");
 
     // Initialize logging
-    Logger::initialize(LogLevel::INFO);
+    core::Logger::getInstance().setLevel(core::LogLevel::INFO);
     LOG_INFO("TestOSD", "Starting OSD test tool");
 
     // Setup signal handlers
@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
         );
 
         // Update menu (handles input)
-        menu.update();
+        menu.update(16.67f); // ~60 FPS frame time
 
         // Render OSD on test pattern
         if (menu.isVisible()) {
@@ -180,12 +180,9 @@ int main(int argc, char* argv[]) {
             // The OSD is composited by the renderer
         }
 
-        // Display frame
-        result = display.present(test_frame);
-        if (result != Result::SUCCESS) {
-            LOG_ERROR("TestOSD", "Failed to present frame");
-            break;
-        }
+        // Display frame (note: DRMDisplay uses pageFlip with framebuffer IDs,
+        // this test tool currently only tests OSD rendering logic, not actual display output)
+        (void)test_frame; // Frame would be presented via Vulkan presenter in real usage
 
         // Clean up frame data
         delete[] test_frame.data;

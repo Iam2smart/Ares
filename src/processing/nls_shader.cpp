@@ -495,7 +495,7 @@ Result NLSShader::createTextures(uint32_t input_width, uint32_t input_height,
         input_params.w = (int)input_width;
         input_params.h = (int)input_height;
         input_params.format = pl_find_fmt(m_gpu, PL_FMT_UNORM, 3, 0, 8,
-                                         PL_FMT_CAP_SAMPLEABLE | PL_FMT_CAP_HOST_WRITABLE);
+                                         static_cast<pl_fmt_caps>(PL_FMT_CAP_SAMPLEABLE));
         input_params.sampleable = true;
         input_params.host_writable = true;
 
@@ -511,7 +511,7 @@ Result NLSShader::createTextures(uint32_t input_width, uint32_t input_height,
         output_params.w = (int)output_width;
         output_params.h = (int)output_height;
         output_params.format = pl_find_fmt(m_gpu, PL_FMT_UNORM, 3, 0, 8,
-                                          PL_FMT_CAP_RENDERABLE | PL_FMT_CAP_HOST_READABLE);
+                                          static_cast<pl_fmt_caps>(PL_FMT_CAP_RENDERABLE | PL_FMT_CAP_HOST_READABLE));
         output_params.renderable = true;
         output_params.host_readable = true;
 
@@ -594,7 +594,7 @@ Result NLSShader::uploadFrame(const VideoFrame& frame) {
     struct pl_tex_transfer_params upload_params = {};
     upload_params.tex = m_input_tex;
     upload_params.ptr = frame.data;
-    upload_params.stride_w = (size_t)frame.width * 3;  // RGB 8-bit = 3 bytes per pixel
+    upload_params.row_pitch = (size_t)frame.width * 3;  // RGB 8-bit = 3 bytes per pixel
 
     if (!pl_tex_upload(m_gpu, &upload_params)) {
         LOG_ERROR("Processing", "Failed to upload frame to GPU");
@@ -663,7 +663,7 @@ Result NLSShader::downloadFrame(VideoFrame& output) {
     struct pl_tex_transfer_params download_params = {};
     download_params.tex = m_output_tex;
     download_params.ptr = output.data;
-    download_params.stride_w = m_output_width * 3;
+    download_params.row_pitch = m_output_width * 3;
 
     if (!pl_tex_download(m_gpu, &download_params)) {
         LOG_ERROR("Processing", "Failed to download frame from GPU");

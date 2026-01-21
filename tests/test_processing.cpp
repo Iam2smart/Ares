@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <chrono>
 #include <thread>
+#include <cstring>
 #include <signal.h>
 #include <unistd.h>
 
@@ -95,10 +96,10 @@ int main(int argc, char** argv) {
     // NLS (Non-Linear Stretch) - aspect ratio warping
     config.nls.enabled = false;  // Disabled by default for testing
     config.nls.target_aspect = NLSConfig::TargetAspect::SCOPE_235;
-    config.nls.center_strength = 0.0f;
-    config.nls.edge_strength = 1.0f;
-    config.nls.transition_width = 0.3f;
-    config.nls.interpolation_quality = NLSConfig::InterpolationQuality::BICUBIC;
+    config.nls.center_protect = 1.0f;
+    config.nls.horizontal_stretch = 0.5f;
+    config.nls.vertical_stretch = 0.5f;
+    config.nls.interpolation = NLSConfig::InterpolationQuality::BICUBIC;
 
     // Quality
     config.quality = ProcessingConfig::Quality::BALANCED;
@@ -158,10 +159,10 @@ int main(int argc, char** argv) {
     test_input.format = PixelFormat::YUV420P_10BIT;
     test_input.size = test_input.width * test_input.height * 2;  // Simplified
     test_input.data = new uint8_t[test_input.size];
-    test_input.pts = 0;
+    test_input.pts = std::chrono::steady_clock::now();
 
     // Fill with test pattern (black bars on top/bottom)
-    std::memset(test_input.data, 0, test_input.size);
+    memset(test_input.data, 0, test_input.size);
     // Content area (no bars for now - in real scenario would have letterbox)
     for (uint32_t y = 0; y < test_input.height; y++) {
         for (uint32_t x = 0; x < test_input.width; x++) {
@@ -170,11 +171,11 @@ int main(int argc, char** argv) {
     }
 
     // HDR metadata
-    test_input.hdr_metadata.has_hdr10_metadata = true;
-    test_input.hdr_metadata.max_content_light_level = 1000.0f;
-    test_input.hdr_metadata.max_frame_average_light_level = 400.0f;
-    test_input.hdr_metadata.mastering_display_max_luminance = 1000.0f;
-    test_input.hdr_metadata.mastering_display_min_luminance = 0.0001f;
+    test_input.hdr_metadata.type = HDRType::HDR10;
+    test_input.hdr_metadata.max_cll = 1000;   // nits
+    test_input.hdr_metadata.max_fall = 400;   // nits
+    test_input.hdr_metadata.max_luminance = 1000;     // cd/m²
+    test_input.hdr_metadata.min_luminance = 1;        // cd/m² * 10000
 
     std::cout << "Processing test frames...\n";
     std::cout << "Press Ctrl+C to stop\n\n";
@@ -186,7 +187,7 @@ int main(int argc, char** argv) {
     while (g_running && frame_count < 100) {  // Limit to 100 frames for testing
         VideoFrame output;
 
-        test_input.pts = frame_count * 16666667;  // 60 fps
+        test_input.pts = std::chrono::steady_clock::now();  // Current timestamp
 
         result = pipeline.processFrame(test_input, output);
         if (result != Result::SUCCESS) {

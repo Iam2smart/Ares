@@ -5,6 +5,7 @@
 #include <glob.h>
 #include <linux/input.h>
 #include <chrono>
+#include <cstring>
 
 namespace ares {
 namespace input {

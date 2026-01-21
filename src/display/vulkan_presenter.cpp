@@ -377,11 +377,11 @@ Result VulkanPresenter::uploadFrameToGpu(const VideoFrame& frame, uint32_t buffe
         return Result::ERROR_GENERIC;
     }
 
-    // Copy frame data (handle different plane configurations)
-    if (frame.num_planes == 1 && frame.data[0]) {
-        memcpy(mapped_data, frame.data[0], data_size);
+    // Copy frame data
+    if (frame.data) {
+        memcpy(mapped_data, frame.data, data_size);
     } else {
-        LOG_WARN("Display", "Multi-plane or missing data, skipping upload");
+        LOG_WARN("Display", "Missing frame data, skipping upload");
     }
 
     vkUnmapMemory(m_device, m_staging_buffer_memory);

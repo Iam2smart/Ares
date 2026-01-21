@@ -18,9 +18,24 @@ pkg_check_modules(LIBDRM REQUIRED libdrm)
 pkg_check_modules(LIBUDEV REQUIRED libudev)
 pkg_check_modules(LIBEVDEV REQUIRED libevdev)
 
-# DeckLink SDK (manual path)
+# DeckLink SDK (optional)
 set(DECKLINK_SDK_PATH "/usr/local/include/DeckLinkAPI" CACHE PATH "Path to DeckLink SDK")
 set(DECKLINK_LIB_PATH "/usr/local/lib" CACHE PATH "Path to DeckLink libraries")
+option(ARES_ENABLE_DECKLINK "Enable DeckLink capture support" ON)
+
+# Check if DeckLink SDK is available
+if(ARES_ENABLE_DECKLINK)
+    if(EXISTS "${DECKLINK_SDK_PATH}/DeckLinkAPI.h")
+        set(DECKLINK_FOUND TRUE)
+        message(STATUS "DeckLink SDK found at ${DECKLINK_SDK_PATH}")
+    else()
+        set(DECKLINK_FOUND FALSE)
+        message(WARNING "DeckLink SDK not found at ${DECKLINK_SDK_PATH}, building without DeckLink support")
+    endif()
+else()
+    set(DECKLINK_FOUND FALSE)
+    message(STATUS "DeckLink support disabled")
+endif()
 
 # Threads
 find_package(Threads REQUIRED)

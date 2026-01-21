@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <functional>
@@ -98,14 +99,14 @@ struct OSDConfig {
     uint32_t value_color = 0xAAAAAAFF;          // RGBA
 
     // Tab appearance
-    uint32_t tab_active_bg = 0xFF1A1A1AFF;
-    uint32_t tab_inactive_bg = 0xFF0A0A0AFF;
+    uint32_t tab_active_bg = 0x1A1A1AFF;
+    uint32_t tab_inactive_bg = 0x0A0A0AFF;
     uint32_t tab_active_text = 0xFFFFFFFF;
     uint32_t tab_inactive_text = 0xAAAAAAFF;
 
     // Selection and UI elements
     uint32_t selection_color = 0x8000AAFF;      // RGBA
-    uint32_t slider_bg_color = 0xFF404040FF;
+    uint32_t slider_bg_color = 0x404040FF;
     uint32_t slider_fill_color = 0xFF00AAFF;
     uint32_t slider_handle_color = 0xFFFFFFFF;
 

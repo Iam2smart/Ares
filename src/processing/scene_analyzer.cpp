@@ -51,9 +51,9 @@ float SceneAnalyzer::lumaNitsToFloat(float luma, const HDRMetadata& hdr_metadata
     if (hdr_metadata.max_cll > 0.0f) {
         // Scale by MaxCLL from metadata
         return luma * hdr_metadata.max_cll;
-    } else if (hdr_metadata.max_display_mastering_luminance > 0.0f) {
+    } else if (hdr_metadata.max_luminance > 0) {
         // Scale by mastering display luminance
-        return luma * hdr_metadata.max_display_mastering_luminance;
+        return luma * hdr_metadata.max_luminance;
     } else {
         // Fallback: assume PQ curve with 10000 nits max
         // PQ inverse EOTF approximation

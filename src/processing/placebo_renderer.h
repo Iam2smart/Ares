@@ -59,7 +59,7 @@ private:
     Result downloadFrame(VideoFrame& output);
 
     // Helper to convert tone mapping algorithm
-    pl_tone_map_function getToneMappingFunction(ToneMappingAlgorithm algo);
+    const pl_tone_map_function* getToneMappingFunction(ToneMappingAlgorithm algo);
 
     // Vulkan context (not owned)
     VulkanContext* m_vk_context = nullptr;

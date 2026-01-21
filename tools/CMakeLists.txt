@@ -10,6 +10,12 @@ target_link_libraries(test_osd
     ares_osd
     ares_input
     ares_display
+    ${Vulkan_LIBRARIES}
+    ${LIBPLACEBO_LIBRARIES}
+    ${LIBDRM_LIBRARIES}
+    ${LIBUDEV_LIBRARIES}
+    ${LIBEVDEV_LIBRARIES}
+    Threads::Threads
 )
 
 # Install to build directory for testing

@@ -441,4 +441,39 @@ OSDMenuStructure createDefaultOSDMenu() {
     return menu;
 }
 
+// OSDMenuStructure implementations
+void OSDMenuStructure::build() {
+    // Clear existing tabs and rebuild
+    tabs.clear();
+    *this = createDefaultOSDMenu();
+}
+
+Menu* OSDMenuStructure::getTab(int index) {
+    if (index >= 0 && index < static_cast<int>(tabs.size())) {
+        return &tabs[index];
+    }
+    return nullptr;
+}
+
+Menu* OSDMenuStructure::getTab(const std::string& id) {
+    for (auto& tab : tabs) {
+        if (tab.id == id) {
+            return &tab;
+        }
+    }
+    return nullptr;
+}
+
+MenuItem* OSDMenuStructure::getItem(const std::string& tab_id, const std::string& item_id) {
+    Menu* tab = getTab(tab_id);
+    if (tab) {
+        for (auto& item : tab->items) {
+            if (item.id == item_id) {
+                return &item;
+            }
+        }
+    }
+    return nullptr;
+}
+
 } // namespace ares

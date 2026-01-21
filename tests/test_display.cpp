@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
 
     // Present frames
     while (g_running && frame_count < 300) {  // Limit to 300 frames (5 seconds at 60fps)
-        test_frame.pts = frame_count * 16666667;  // 60 fps timestamp
+        test_frame.pts = Timestamp(std::chrono::nanoseconds(frame_count * 16666667));  // 60 fps timestamp
 
         result = presenter.presentFrame(test_frame);
         if (result != Result::SUCCESS) {

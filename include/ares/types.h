@@ -14,7 +14,9 @@ enum class PixelFormat {
     UNKNOWN,
     YUV422_8BIT,
     YUV422_10BIT,
+    YUV420P_10BIT,
     RGB_8BIT,
+    RGBA_8BIT,
     RGB_10BIT,
     RGB_16BIT_FLOAT
 };
@@ -64,14 +66,6 @@ struct VideoFrame {
     bool interlaced = false;
 };
 
-// Display mode
-struct DisplayMode {
-    uint32_t width;
-    uint32_t height;
-    float refresh_rate;
-    bool interlaced;
-};
-
 // Result type for error handling
 enum class Result {
     SUCCESS = 0,
@@ -82,7 +76,14 @@ enum class Result {
     ERROR_DEVICE_LOST = -5,
     ERROR_OUT_OF_MEMORY = -6,
     ERROR_TIMEOUT = -7,
-    ERROR_WRITE_FAILED = -8
+    ERROR_WRITE_FAILED = -8,
+    ERROR_OPEN_FAILED = -9,
+    ERROR_INITIALIZATION_FAILED = -10,
+    ERROR_READ_FAILED = -11,
+    ERROR_BUSY = -12,
+    ERROR_FILE_NOT_FOUND = -13,
+    ERROR_INVALID_DATA = -14,
+    ERROR_CONNECTION_FAILED = -15
 };
 
 } // namespace ares

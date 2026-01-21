@@ -26,6 +26,9 @@ target_include_directories(test_processing PRIVATE
 target_link_libraries(test_processing
     ares_core
     ares_processing
+    ares_osd
+    ${Vulkan_LIBRARIES}
+    ${LIBPLACEBO_LIBRARIES}
     Threads::Threads
 )
 
@@ -41,6 +44,9 @@ target_link_libraries(test_display
     ares_core
     ares_processing
     ares_display
+    ${Vulkan_LIBRARIES}
+    ${LIBPLACEBO_LIBRARIES}
+    ${LIBDRM_LIBRARIES}
     Threads::Threads
 )
 

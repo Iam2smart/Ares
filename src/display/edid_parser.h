@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ares/types.h>
+#include <ares/display_config.h>
 #include <vector>
 #include <string>
 #include <cstdint>

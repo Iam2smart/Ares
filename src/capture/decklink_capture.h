@@ -7,13 +7,6 @@
 #include <mutex>
 #include <condition_variable>
 
-// Forward declarations for DeckLink SDK
-class IDeckLink;
-class IDeckLinkInput;
-class IDeckLinkDisplayMode;
-class IDeckLinkVideoInputFrame;
-class IDeckLinkInputCallback;
-
 namespace ares {
 namespace capture {
 
@@ -26,6 +19,15 @@ struct CaptureConfig {
     bool enable_10bit = true;
     std::string input_connection = "HDMI"; // HDMI, SDI, etc.
 };
+
+#ifdef ARES_HAS_DECKLINK
+
+// Forward declarations for DeckLink SDK
+class IDeckLink;
+class IDeckLinkInput;
+class IDeckLinkDisplayMode;
+class IDeckLinkVideoInputFrame;
+class IDeckLinkInputCallback;
 
 // Internal DeckLink callback handler
 class DeckLinkCaptureCallback;
@@ -40,6 +42,9 @@ public:
 
     // Initialize with full configuration
     Result initialize(const CaptureConfig& config);
+
+    // Cleanup
+    void shutdown();
 
     // Start/stop capture
     Result start();
@@ -116,6 +121,54 @@ private:
     std::atomic<bool> m_initialized{false};
     std::atomic<bool> m_running{false};
 };
+
+#else // !ARES_HAS_DECKLINK
+
+// Stub implementation when DeckLink SDK is not available
+class DeckLinkCapture {
+public:
+    DeckLinkCapture() = default;
+    ~DeckLinkCapture() = default;
+
+    Result initialize(int /*device_index*/) {
+        return Result::ERROR_NOT_FOUND;
+    }
+
+    Result initialize(const CaptureConfig& /*config*/) {
+        return Result::ERROR_NOT_FOUND;
+    }
+
+    void shutdown() {}
+
+    Result start() {
+        return Result::ERROR_NOT_INITIALIZED;
+    }
+
+    Result stop() {
+        return Result::ERROR_NOT_INITIALIZED;
+    }
+
+    Result getFrame(VideoFrame& /*frame*/, int /*timeout_ms*/ = 100) {
+        return Result::ERROR_NOT_INITIALIZED;
+    }
+
+    bool hasFrame() const { return false; }
+
+    struct Stats {
+        uint64_t frames_captured = 0;
+        uint64_t frames_dropped = 0;
+        double current_fps = 0.0;
+        double detected_fps = 0.0;
+        bool frame_rate_stable = false;
+        uint32_t queue_size = 0;
+    };
+    Stats getStats() const { return Stats{}; }
+
+    double getDetectedFrameRate() const { return 0.0; }
+    bool isFrameRateStable() const { return false; }
+};
+
+#endif // ARES_HAS_DECKLINK
 
 } // namespace capture
 } // namespace ares

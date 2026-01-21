@@ -601,16 +601,15 @@ Result OSDCompositor::composite(const VideoFrame& video, const uint8_t* osd_data
             m_video_width = video.width;
             m_video_height = video.height;
 
-            struct pl_tex_params tex_params = {
-                .w = video.width,
-                .h = video.height,
-                .format = pl_find_named_fmt(m_gpu, "rgb8"),
-                .sampleable = true,
-                .renderable = true,
-                .host_writable = true,
-                .blit_src = true,
-                .blit_dst = true,
-            };
+            struct pl_tex_params tex_params = {};
+            tex_params.w = static_cast<int>(video.width);
+            tex_params.h = static_cast<int>(video.height);
+            tex_params.format = pl_find_named_fmt(m_gpu, "rgb8");
+            tex_params.sampleable = true;
+            tex_params.renderable = true;
+            tex_params.host_writable = true;
+            tex_params.blit_src = true;
+            tex_params.blit_dst = true;
 
             m_video_tex = pl_tex_create(m_gpu, &tex_params);
             if (!m_video_tex) {
@@ -628,16 +627,15 @@ Result OSDCompositor::composite(const VideoFrame& video, const uint8_t* osd_data
             m_osd_width = osd_width;
             m_osd_height = osd_height;
 
-            struct pl_tex_params tex_params = {
-                .w = osd_width,
-                .h = osd_height,
-                .format = pl_find_named_fmt(m_gpu, "rgba8"),
-                .sampleable = true,
-                .host_writable = true,
-                .blit_src = true,
-            };
+            struct pl_tex_params osd_tex_params = {};
+            osd_tex_params.w = static_cast<int>(osd_width);
+            osd_tex_params.h = static_cast<int>(osd_height);
+            osd_tex_params.format = pl_find_named_fmt(m_gpu, "rgba8");
+            osd_tex_params.sampleable = true;
+            osd_tex_params.host_writable = true;
+            osd_tex_params.blit_src = true;
 
-            m_osd_tex = pl_tex_create(m_gpu, &tex_params);
+            m_osd_tex = pl_tex_create(m_gpu, &osd_tex_params);
             if (!m_osd_tex) {
                 LOG_ERROR("OSD", "Failed to create OSD texture");
                 return Result::ERROR_GENERIC;
@@ -646,16 +644,15 @@ Result OSDCompositor::composite(const VideoFrame& video, const uint8_t* osd_data
 
         // Create output texture if needed
         if (!m_output_tex) {
-            struct pl_tex_params tex_params = {
-                .w = video.width,
-                .h = video.height,
-                .format = pl_find_named_fmt(m_gpu, "rgb8"),
-                .renderable = true,
-                .host_readable = true,
-                .blit_dst = true,
-            };
+            struct pl_tex_params out_tex_params = {};
+            out_tex_params.w = static_cast<int>(video.width);
+            out_tex_params.h = static_cast<int>(video.height);
+            out_tex_params.format = pl_find_named_fmt(m_gpu, "rgb8");
+            out_tex_params.renderable = true;
+            out_tex_params.host_readable = true;
+            out_tex_params.blit_dst = true;
 
-            m_output_tex = pl_tex_create(m_gpu, &tex_params);
+            m_output_tex = pl_tex_create(m_gpu, &out_tex_params);
             if (!m_output_tex) {
                 LOG_ERROR("OSD", "Failed to create output texture");
                 return Result::ERROR_GENERIC;
@@ -663,11 +660,11 @@ Result OSDCompositor::composite(const VideoFrame& video, const uint8_t* osd_data
         }
 
         // Upload video data to GPU
-        bool upload_ok = pl_tex_upload(m_gpu, &(struct pl_tex_transfer_params){
-            .tex = m_video_tex,
-            .ptr = (void*)video.data,
-            .row_pitch = video.width * 3,
-        });
+        struct pl_tex_transfer_params video_upload_params = {};
+        video_upload_params.tex = m_video_tex;
+        video_upload_params.ptr = (void*)video.data;
+        video_upload_params.row_pitch = video.width * 3;
+        bool upload_ok = pl_tex_upload(m_gpu, &video_upload_params);
 
         if (!upload_ok) {
             LOG_ERROR("OSD", "Failed to upload video data to GPU");
@@ -675,11 +672,11 @@ Result OSDCompositor::composite(const VideoFrame& video, const uint8_t* osd_data
         }
 
         // Upload OSD data to GPU
-        upload_ok = pl_tex_upload(m_gpu, &(struct pl_tex_transfer_params){
-            .tex = m_osd_tex,
-            .ptr = (void*)osd_data,
-            .row_pitch = osd_width * 4,
-        });
+        struct pl_tex_transfer_params osd_upload_params = {};
+        osd_upload_params.tex = m_osd_tex;
+        osd_upload_params.ptr = (void*)osd_data;
+        osd_upload_params.row_pitch = osd_width * 4;
+        upload_ok = pl_tex_upload(m_gpu, &osd_upload_params);
 
         if (!upload_ok) {
             LOG_ERROR("OSD", "Failed to upload OSD data to GPU");
@@ -688,30 +685,29 @@ Result OSDCompositor::composite(const VideoFrame& video, const uint8_t* osd_data
 
         // Use libplacebo's built-in alpha blending
         // First, copy video to output
-        pl_tex_blit(m_gpu, &(struct pl_tex_blit_params){
-            .src = m_video_tex,
-            .dst = m_output_tex,
-        });
+        struct pl_tex_blit_params video_blit_params = {};
+        video_blit_params.src = m_video_tex;
+        video_blit_params.dst = m_output_tex;
+        pl_tex_blit(m_gpu, &video_blit_params);
 
         // Then blend OSD on top with alpha
         // libplacebo handles alpha blending automatically if source has alpha channel
-        struct pl_tex_blit_params blit_params = {
-            .src = m_osd_tex,
-            .dst = m_output_tex,
-            .sample_mode = PL_TEX_SAMPLE_LINEAR,
-        };
+        struct pl_tex_blit_params osd_blit_params = {};
+        osd_blit_params.src = m_osd_tex;
+        osd_blit_params.dst = m_output_tex;
+        osd_blit_params.sample_mode = PL_TEX_SAMPLE_LINEAR;
 
         // If opacity is not 1.0, we need a custom pass
         // For simplicity, we'll use a simple overlay blit for now
         // libplacebo will respect the alpha channel in the OSD texture
-        pl_tex_blit(m_gpu, &blit_params);
+        pl_tex_blit(m_gpu, &osd_blit_params);
 
         // Download result from GPU
-        bool download_ok = pl_tex_download(m_gpu, &(struct pl_tex_transfer_params){
-            .tex = m_output_tex,
-            .ptr = output.data,
-            .row_pitch = video.width * 3,
-        });
+        struct pl_tex_transfer_params download_params = {};
+        download_params.tex = m_output_tex;
+        download_params.ptr = output.data;
+        download_params.row_pitch = video.width * 3;
+        bool download_ok = pl_tex_download(m_gpu, &download_params);
 
         if (!download_ok) {
             LOG_ERROR("OSD", "Failed to download composited frame from GPU");
